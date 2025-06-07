@@ -41,13 +41,35 @@
         <span id="calc-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
     </form>
 
+    <div class="mt-4">
+        <h5>Paramètres avancés (DCA intelligent)</h5>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Seuil haut FGI</label>
+                <input type="number" id="fg_threshold_high" class="form-control" value="75">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Seuil bas FGI</label>
+                <input type="number" id="fg_threshold_low" class="form-control" value="30">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">% du bag utilisé</label>
+                <input type="number" id="bag_bonus_pct" class="form-control" value="20">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Plafond du bonus</label>
+                <input type="number" id="bag_bonus_max" class="form-control" value="300">
+            </div>
+        </div>
+    </div>
+
     <button id="best-days-btn" class="btn btn-info mt-3">🔍 Simuler les meilleurs jours d'investissement</button>
     <span id="best-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
     <div id="best-days" class="mt-3"></div>
 
     <button id="smart-dca-btn" class="btn btn-success mt-3">💡 Simuler un DCA intelligent basé sur le Fear & Greed</button>
     <span id="smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
-    <div id="smart-results" class="mt-3"></div>
+    <div id="smart-dca-result" class="mt-3"></div>
 
     <div id="results" class="mt-3"></div>
     <button id="export-btn" class="btn btn-secondary my-3 d-none">Exporter les résultats CSV</button>

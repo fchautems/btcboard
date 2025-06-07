@@ -169,17 +169,28 @@ def dca():
 @app.route('/api/smart-dca', methods=['POST'])
 def smart_dca():
     """DCA adjusted using Fear & Greed Index."""
-    # Parameters specific to the smart DCA logic
-    fgi_threshold_high = 75
-    fgi_threshold_low = 30
-    bonus_from_bag_pct = 0.20
-    max_bonus_from_bag = 300
-
-    data = request.get_json()
+    data = request.get_json() or {}
     logging.info("/api/smart-dca params: %s", data)
     amount = float(data.get('amount'))
     start = data.get('start')
     freq = data.get('frequency')
+
+    def parse_int(val, default):
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return default
+
+    def parse_float(val, default):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return default
+
+    fgi_threshold_high = parse_int(data.get('fg_threshold_high'), 75)
+    fgi_threshold_low = parse_int(data.get('fg_threshold_low'), 30)
+    bonus_from_bag_pct = parse_float(data.get('bag_bonus_pct'), 20) / 100
+    max_bonus_from_bag = parse_float(data.get('bag_bonus_max'), 300)
 
     conn = get_db_connection()
     rows = conn.execute('SELECT date, price, fg FROM data WHERE date >= ? ORDER BY date', (start,)).fetchall()
