@@ -24,3 +24,7 @@ form {
 canvas {
     margin-top: 40px;
 }
+
+#reset-msg {
+    min-height: 1.5em;
+}
