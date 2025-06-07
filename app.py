@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request, render_template
 import calendar
 import pandas as pd
+import logging
 
 # Parameters for smart DCA based on Fear & Greed Index
 FGI_THRESHOLD_HIGH = 75
@@ -15,6 +16,12 @@ DB_NAME = 'btc.db'
 CSV_FILE = 'data.csv'
 
 app = Flask(__name__)
+
+logging.basicConfig(
+    filename='btcboard.log',
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
+)
 
 
 def init_db(force: bool = False):
@@ -85,6 +92,7 @@ def get_data():
 @app.route('/api/dca', methods=['POST'])
 def dca():
     data = request.get_json()
+    logging.info("/api/dca params: %s", data)
     amount = float(data.get('amount'))
     start = data.get('start')
     freq = data.get('frequency')
@@ -132,6 +140,13 @@ def dca():
         'progress': progress,
         'purchases': purchases
     }
+    logging.info("/api/dca result: %s", {
+        'num_purchases': len(purchase_indices),
+        'total_invested': invested,
+        'total_btc': btc_total,
+        'final_value': final_value,
+        'performance_pct': performance
+    })
     return jsonify(result)
 
 
@@ -139,6 +154,7 @@ def dca():
 def smart_dca():
     """DCA adjusted using Fear & Greed Index."""
     data = request.get_json()
+    logging.info("/api/smart-dca params: %s", data)
     amount = float(data.get('amount'))
     start = data.get('start')
     freq = data.get('frequency')
@@ -186,6 +202,14 @@ def smart_dca():
         'bag_remaining': bag,
         'performance_pct': performance,
     }
+    logging.info("/api/smart-dca result: %s", {
+        'total_invested': invested,
+        'btc_total': btc_total,
+        'final_value': final_value,
+        'bag_used': bag_used,
+        'bag_remaining': bag,
+        'performance_pct': performance,
+    })
     return jsonify(result)
 
 
@@ -193,6 +217,7 @@ def smart_dca():
 def best_days():
     """Simulate DCA for each weekday and day of month."""
     data = request.get_json()
+    logging.info("/api/best-days params: %s", data)
     amount = float(data.get('amount'))
     start = data.get('start')
 
@@ -251,6 +276,7 @@ def best_days():
                 'final_value': final_value,
                 'performance_pct': perf,
             })
+    logging.info("/api/best-days result count: %d", len(results))
 
     return jsonify(results)
 
@@ -259,10 +285,13 @@ def best_days():
 def reset_db():
     """Reset the SQLite database from the CSV file."""
     try:
+        logging.info("/reset-db called")
         init_db(force=True)
         min_date, max_date = get_date_range()
+        logging.info("/reset-db success")
         return jsonify({'success': True, 'min_date': min_date, 'max_date': max_date})
     except Exception as exc:
+        logging.error("/reset-db error: %s", exc)
         return jsonify({'success': False, 'error': str(exc)})
 
 
