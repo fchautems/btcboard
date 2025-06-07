@@ -124,3 +124,17 @@ function drawPerfChart(progress){
         options: baseOptions
     });
 }
+
+function displayResults(data){
+    const div = document.getElementById('results');
+    div.innerHTML = `
+        <ul class="list-group">
+            <li class="list-group-item">Nombre d'achats : ${data.num_purchases}</li>
+            <li class="list-group-item">Investissement total : ${data.total_invested.toFixed(2)} USD</li>
+            <li class="list-group-item">Bitcoin accumulé : ${data.total_btc.toFixed(8)} BTC</li>
+            <li class="list-group-item">Valeur finale : ${data.final_value.toFixed(2)} USD</li>
+            <li class="list-group-item">Valeur en achat unique : ${data.lump_value.toFixed(2)} USD</li>
+            <li class="list-group-item">Performance : ${data.performance_pct.toFixed(2)}%</li>
+        </ul>
+    `;
+}
