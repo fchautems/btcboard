@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const smartBtn = document.getElementById('smart-dca-btn');
     const smartSpinner = document.getElementById('smart-spinner');
     smartDiv = document.getElementById('smart-dca-result');
+    const optBtn = document.getElementById('opt-smart-dca-btn');
+    const optSpinner = document.getElementById('opt-smart-spinner');
+    const optDiv = document.getElementById('opt-smart-result');
 
     const fgHighInput = document.getElementById('fg_threshold_high');
     const fgLowInput = document.getElementById('fg_threshold_low');
@@ -93,6 +96,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         smartSpinner.classList.add('d-none');
         smartBtn.disabled = false;
+    });
+
+    optBtn.addEventListener('click', async () => {
+        optBtn.disabled = true;
+        optSpinner.classList.remove('d-none');
+        optDiv.innerHTML = '<em>Optimisation en cours...</em>';
+        const amount = parseFloat(document.getElementById('amount').value);
+        const start = document.getElementById('start').value;
+        const freq = document.getElementById('frequency').value;
+        const res = await fetch('/api/optimize-smart-dca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount, start, frequency: freq })
+        });
+        const data = await res.json();
+        if(!res.ok){
+            optDiv.innerHTML = '<span class="text-danger">Erreur : ' + (data.error || 'inconnue') + '</span>';
+        }else{
+            displayOptimization(data);
+        }
+        optSpinner.classList.add('d-none');
+        optBtn.disabled = false;
     });
 
     resetBtn.addEventListener('click', async () => {
@@ -233,4 +258,39 @@ function displaySmartDca(data){
     });
     html += '</tbody></table>';
     smartDiv.innerHTML = html;
+}
+
+function displayOptimization(data){
+    let html = `<p>Combinaisons testées : ${data.tested}</p>`;
+    if(data.best){
+        html += '<h5>Meilleure configuration</h5>';
+        html += '<ul class="list-group mb-3">';
+        html += `<li class="list-group-item">Seuil haut FGI : ${data.best.fg_threshold_high}</li>`;
+        html += `<li class="list-group-item">Seuil bas FGI : ${data.best.fg_threshold_low}</li>`;
+        html += `<li class="list-group-item">% du bag utilisé : ${data.best.bag_bonus_pct}</li>`;
+        html += `<li class="list-group-item">Plafond du bonus : ${data.best.bag_bonus_max}</li>`;
+        html += `<li class="list-group-item">Performance : ${data.best.performance_pct.toFixed(2)}%</li>`;
+        html += '</ul>';
+        html += '<button id="apply-opt-btn" class="btn btn-secondary">🔁 Appliquer cette stratégie</button>';
+    }
+    if(data.second_best){
+        html += '<h6 class="mt-3">Deuxième meilleure configuration</h6>';
+        html += '<ul class="list-group">';
+        html += `<li class="list-group-item">Seuil haut FGI : ${data.second_best.fg_threshold_high}</li>`;
+        html += `<li class="list-group-item">Seuil bas FGI : ${data.second_best.fg_threshold_low}</li>`;
+        html += `<li class="list-group-item">% du bag utilisé : ${data.second_best.bag_bonus_pct}</li>`;
+        html += `<li class="list-group-item">Plafond du bonus : ${data.second_best.bag_bonus_max}</li>`;
+        html += `<li class="list-group-item">Performance : ${data.second_best.performance_pct.toFixed(2)}%</li>`;
+        html += '</ul>';
+    }
+    optDiv.innerHTML = html;
+    const btn = document.getElementById('apply-opt-btn');
+    if(btn){
+        btn.addEventListener('click', () => {
+            fgHighInput.value = data.best.fg_threshold_high;
+            fgLowInput.value = data.best.fg_threshold_low;
+            bagPctInput.value = data.best.bag_bonus_pct;
+            bagMaxInput.value = data.best.bag_bonus_max;
+        });
+    }
 }

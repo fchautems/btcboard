@@ -77,6 +77,44 @@ def get_date_range():
     return row['min_date'], row['max_date']
 
 
+def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
+    """Run smart DCA simulation on given rows and return summary metrics."""
+    btc_total = invested = 0.0
+    bag = bag_used = 0.0
+    last_price = rows[-1]['price'] if rows else 0
+
+    for i, r in enumerate(rows):
+        if i % step != 0:
+            continue
+        fg = r['fg']
+        bonus = 0.0
+        invest_amount = amount
+        if fg >= high:
+            bag += amount
+            invest_amount = 0.0
+        elif fg <= low:
+            bonus = min(bag * pct, bonus_max)
+            bag -= bonus
+            invest_amount = amount + bonus
+
+        if invest_amount > 0:
+            btc_total += invest_amount / r['price']
+            invested += invest_amount
+            bag_used += bonus
+
+    final_value = btc_total * last_price if rows else 0
+    performance = ((final_value - invested) / invested * 100) if invested else 0
+
+    return {
+        'performance_pct': performance,
+        'total_invested': invested,
+        'btc_total': btc_total,
+        'final_value': final_value,
+        'bag_used': bag_used,
+        'bag_remaining': bag,
+    }
+
+
 @app.route('/')
 def index():
     min_date, max_date = get_date_range()
@@ -336,6 +374,56 @@ def best_days():
     logging.info("/api/best-days result count: %d", len(results))
 
     return jsonify(results)
+
+
+@app.route('/api/optimize-smart-dca', methods=['POST'])
+def optimize_smart_dca():
+    """Grid search to find best smart DCA parameters."""
+    data = request.get_json() or {}
+    logging.info("/api/optimize-smart-dca params: %s", data)
+    amount = float(data.get('amount'))
+    start = data.get('start')
+    freq = data.get('frequency')
+
+    step = {'weekly': 7, 'monthly': 30}.get(freq)
+    if step is None:
+        return jsonify({'error': 'frequency must be weekly or monthly'}), 400
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        'SELECT date, price, fg FROM data WHERE date >= ? ORDER BY date',
+        (start,)
+    ).fetchall()
+    conn.close()
+
+    best = None
+    second = None
+    count = 0
+
+    for high in range(60, 95, 5):
+        for low in range(5, 55, 5):
+            for pct in range(5, 55, 5):
+                for bmax in range(50, 550, 50):
+                    result = simulate_smart_dca_rows(rows, step, amount, high, low, pct/100.0, bmax)
+                    count += 1
+                    entry = {
+                        'fg_threshold_high': high,
+                        'fg_threshold_low': low,
+                        'bag_bonus_pct': pct,
+                        'bag_bonus_max': bmax,
+                        'performance_pct': result['performance_pct'],
+                    }
+                    if not best or entry['performance_pct'] > best['performance_pct']:
+                        second = best
+                        best = entry
+                    elif not second or entry['performance_pct'] > second['performance_pct']:
+                        second = entry
+
+    response = {'tested': count, 'best': best}
+    if second:
+        response['second_best'] = second
+    logging.info("/api/optimize-smart-dca tested=%d best=%s", count, best)
+    return jsonify(response)
 
 
 @app.route('/reset-db', methods=['POST'])
