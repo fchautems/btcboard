@@ -1,7 +1,8 @@
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, g
+import time
 import calendar
 import pandas as pd
 import logging
@@ -22,6 +23,26 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
+
+@app.before_request
+def log_request_start():
+    """Log the start of each request."""
+    g.start_time = time.time()
+    logging.info("Started %s %s", request.method, request.path)
+
+
+@app.after_request
+def log_request_end(response):
+    """Log the end of each request with duration."""
+    duration = time.time() - getattr(g, 'start_time', time.time())
+    logging.info(
+        "Completed %s %s -> %s in %.3fs",
+        request.method,
+        request.path,
+        response.status_code,
+        duration,
+    )
+    return response
 
 
 def init_db(force: bool = False):
