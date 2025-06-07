@@ -10,8 +10,11 @@ CSV_FILE = 'data.csv'
 app = Flask(__name__)
 
 
-def init_db():
-    if not os.path.exists(DB_NAME):
+def init_db(force: bool = False):
+    """Create the SQLite database from the CSV file."""
+    if force and os.path.exists(DB_NAME):
+        os.remove(DB_NAME)
+    if force or not os.path.exists(DB_NAME):
         df = pd.read_csv(CSV_FILE)
         df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y')
         df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -36,9 +39,18 @@ def get_db_connection():
     return conn
 
 
+def get_date_range():
+    """Return the min and max dates available in the database."""
+    conn = get_db_connection()
+    row = conn.execute('SELECT MIN(date) as min_date, MAX(date) as max_date FROM data').fetchone()
+    conn.close()
+    return row['min_date'], row['max_date']
+
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    min_date, max_date = get_date_range()
+    return render_template('index.html', min_date=min_date, max_date=max_date)
 
 
 @app.route('/api/chart-data')
@@ -72,28 +84,59 @@ def dca():
     conn = get_db_connection()
     rows = conn.execute('SELECT date, price FROM data WHERE date >= ? ORDER BY date', (start,)).fetchall()
     conn.close()
-    step = {'daily':1, 'weekly':7, 'monthly':30}[freq]
+    step = {'daily': 1, 'weekly': 7, 'monthly': 30}[freq]
     btc_total = 0.0
     invested = 0.0
     progress = []
-    for i in range(0, len(rows), step):
-        r = rows[i]
-        btc = amount / r['price']
-        btc_total += btc
-        invested += amount
-        portfolio_value = btc_total * rows[-1]['price']
-        progress.append({'date': r['date'], 'value': portfolio_value})
+    purchases = []
+    purchase_indices = list(range(0, len(rows), step))
+    lump_btc = (len(purchase_indices) * amount / rows[0]['price']) if rows else 0.0
+
+    for i, r in enumerate(rows):
+        is_buy = i % step == 0
+        if is_buy:
+            btc = amount / r['price']
+            btc_total += btc
+            invested += amount
+            purchases.append({'date': r['date'], 'amount': amount, 'btc': btc, 'price': r['price']})
+        portfolio_value = btc_total * r['price']
+        lump_value = lump_btc * r['price']
+        perf_rel = (portfolio_value / invested - 1) if invested else 0
+        progress.append({
+            'date': r['date'],
+            'value': portfolio_value,
+            'btc': btc_total,
+            'lump_value': lump_value,
+            'perf_rel': perf_rel,
+            'buy': is_buy
+        })
+
     final_value = btc_total * rows[-1]['price'] if rows else 0
+    lump_final = lump_btc * rows[-1]['price'] if rows else 0
     performance = ((final_value - invested) / invested * 100) if invested else 0
+
     result = {
-        'num_purchases': len(progress),
+        'num_purchases': len(purchase_indices),
         'total_invested': invested,
         'total_btc': btc_total,
         'final_value': final_value,
+        'lump_value': lump_final,
         'performance_pct': performance,
-        'progress': progress
+        'progress': progress,
+        'purchases': purchases
     }
     return jsonify(result)
+
+
+@app.route('/reset-db', methods=['POST'])
+def reset_db():
+    """Reset the SQLite database from the CSV file."""
+    try:
+        init_db(force=True)
+        min_date, max_date = get_date_range()
+        return jsonify({'success': True, 'min_date': min_date, 'max_date': max_date})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)})
 
 
 if __name__ == '__main__':
