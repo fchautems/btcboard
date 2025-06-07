@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const resetSpinner = document.getElementById('reset-spinner');
     const resetMsg = document.getElementById('reset-msg');
+    const bestBtn = document.getElementById('best-days-btn');
+    const bestSpinner = document.getElementById('best-spinner');
+    const bestDiv = document.getElementById('best-days');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -33,6 +36,23 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/chart-data')
         .then(r => r.json())
         .then(drawCharts);
+
+    bestBtn.addEventListener('click', async () => {
+        bestBtn.disabled = true;
+        bestSpinner.classList.remove('d-none');
+        bestDiv.innerHTML = '<em>Calcul en cours...</em>';
+        const amount = parseFloat(document.getElementById('amount').value);
+        const start = document.getElementById('start').value;
+        const res = await fetch('/api/best-days', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount, start })
+        });
+        const data = await res.json();
+        displayBestDays(data);
+        bestSpinner.classList.add('d-none');
+        bestBtn.disabled = false;
+    });
 
     resetBtn.addEventListener('click', async () => {
         if(!confirm('Confirmer la r\u00e9initialisation de la base ?')) return;
@@ -137,4 +157,15 @@ function displayResults(data){
             <li class="list-group-item">Performance : ${data.performance_pct.toFixed(2)}%</li>
         </ul>
     `;
+}
+
+function displayBestDays(results){
+    results.sort((a,b)=>b.performance_pct - a.performance_pct);
+    let html = '<table class="table table-striped table-responsive">';
+    html += '<thead><tr><th>Fréquence</th><th>Jour</th><th>Nombre d\'achats</th><th>Total investi</th><th>Valeur finale</th><th>Performance %</th></tr></thead><tbody>';
+    results.forEach(r => {
+        html += `<tr><td>${r.frequency}</td><td>${r.day}</td><td>${r.num_purchases}</td><td>${r.total_invested.toFixed(2)} USD</td><td>${r.final_value.toFixed(2)} USD</td><td>${r.performance_pct.toFixed(2)}%</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('best-days').innerHTML = html;
 }

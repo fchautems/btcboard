@@ -2,6 +2,7 @@ import os
 import sqlite3
 from datetime import datetime
 from flask import Flask, jsonify, request, render_template
+import calendar
 import pandas as pd
 
 DB_NAME = 'btc.db'
@@ -126,6 +127,72 @@ def dca():
         'purchases': purchases
     }
     return jsonify(result)
+
+
+@app.route('/api/best-days', methods=['POST'])
+def best_days():
+    """Simulate DCA for each weekday and day of month."""
+    data = request.get_json()
+    amount = float(data.get('amount'))
+    start = data.get('start')
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        'SELECT date, price FROM data WHERE date >= ? ORDER BY date',
+        (start,)
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        return jsonify([])
+
+    last_price = rows[-1]['price']
+    results = []
+    fr_days = [
+        'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
+    ]
+
+    for d in range(7):
+        btc_total = invested = num = 0
+        for r in rows:
+            dt = datetime.strptime(r['date'], '%Y-%m-%d')
+            if dt.weekday() == d:
+                btc_total += amount / r['price']
+                invested += amount
+                num += 1
+        if num:
+            final_value = btc_total * last_price
+            perf = ((final_value - invested) / invested * 100) if invested else 0
+            results.append({
+                'frequency': 'Hebdo',
+                'day': fr_days[d],
+                'num_purchases': num,
+                'total_invested': invested,
+                'final_value': final_value,
+                'performance_pct': perf,
+            })
+
+    for d in range(1, 32):
+        btc_total = invested = num = 0
+        for r in rows:
+            dt = datetime.strptime(r['date'], '%Y-%m-%d')
+            if dt.day == d:
+                btc_total += amount / r['price']
+                invested += amount
+                num += 1
+        if num:
+            final_value = btc_total * last_price
+            perf = ((final_value - invested) / invested * 100) if invested else 0
+            results.append({
+                'frequency': 'Mensuel',
+                'day': str(d),
+                'num_purchases': num,
+                'total_invested': invested,
+                'final_value': final_value,
+                'performance_pct': perf,
+            })
+
+    return jsonify(results)
 
 
 @app.route('/reset-db', methods=['POST'])
