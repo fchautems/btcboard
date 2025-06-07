@@ -226,5 +226,11 @@ function displaySmartDca(data){
             html += '<p class="text-warning">⚠️ Plus de 50% du bag n\'a jamais été utilisé</p>';
         }
     }
+    html += '<table class="table table-striped table-responsive mt-3">';
+    html += '<thead><tr><th>Date</th><th>FGI</th><th>Action</th><th>Montant investi</th><th>Bonus utilisé</th><th>Total investi</th><th>Bag après action</th><th>BTC acheté</th></tr></thead><tbody>';
+    data.history.forEach(h => {
+        html += `<tr><td>${h.date}</td><td>${h.fgi}</td><td>${h.action}</td><td>${h.amount.toFixed(2)}</td><td>${h.bonus.toFixed(2)}</td><td>${h.total.toFixed(2)}</td><td>${h.bag.toFixed(2)}</td><td>${h.btc.toFixed(8)}</td></tr>`;
+    });
+    html += '</tbody></table>';
     smartDiv.innerHTML = html;
 }

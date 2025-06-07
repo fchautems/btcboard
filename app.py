@@ -202,6 +202,7 @@ def smart_dca():
 
     btc_total = invested = 0.0
     bag = bag_used = 0.0
+    history = []
 
     last_price = rows[-1]['price'] if rows else 0
 
@@ -211,20 +212,35 @@ def smart_dca():
         fg = r['fg']
         bonus = 0.0
         action = "invest"
+        invest_amount = amount
         if fg >= fgi_threshold_high:
             bag += amount
             action = "to_bag"
+            invest_amount = 0.0
         elif fg <= fgi_threshold_low:
             bonus = min(bag * bonus_from_bag_pct, max_bonus_from_bag)
             bag -= bonus
+            invest_amount = amount + bonus
             action = "bonus"
 
-        if action != "to_bag":
-            invest_amount = amount + bonus
+        btc = 0.0
+        if invest_amount > 0:
             btc = invest_amount / r['price']
             btc_total += btc
             invested += invest_amount
             bag_used += bonus
+
+        history.append({
+            'date': r['date'],
+            'fgi': fg,
+            'action': action,
+            'amount': amount if action != 'to_bag' else 0.0,
+            'bonus': bonus,
+            'total': invest_amount,
+            'bag': bag,
+            'btc': btc,
+        })
+
         logging.info(
             "date=%s fg=%s action=%s invest=%.2f bonus=%.2f bag=%.2f btc=%.8f",
             r['date'], fg, action, amount, bonus, bag, btc_total
@@ -241,6 +257,7 @@ def smart_dca():
         'bag_used': bag_used,
         'bag_remaining': bag,
         'performance_pct': performance,
+        'history': history,
     }
     logging.info("/api/smart-dca result: %s", {
         'total_invested': invested,
