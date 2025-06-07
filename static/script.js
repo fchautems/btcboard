@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const bestBtn = document.getElementById('best-days-btn');
     const bestSpinner = document.getElementById('best-spinner');
     const bestDiv = document.getElementById('best-days');
+    const smartBtn = document.getElementById('smart-dca-btn');
+    const smartSpinner = document.getElementById('smart-spinner');
+    const smartDiv = document.getElementById('smart-results');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -52,6 +55,24 @@ document.addEventListener('DOMContentLoaded', () => {
         displayBestDays(data);
         bestSpinner.classList.add('d-none');
         bestBtn.disabled = false;
+    });
+
+    smartBtn.addEventListener('click', async () => {
+        smartBtn.disabled = true;
+        smartSpinner.classList.remove('d-none');
+        smartDiv.innerHTML = '<em>Calcul en cours...</em>';
+        const amount = parseFloat(document.getElementById('amount').value);
+        const start = document.getElementById('start').value;
+        const freq = document.getElementById('frequency').value;
+        const res = await fetch('/api/smart-dca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount, start, frequency: freq })
+        });
+        const data = await res.json();
+        displaySmartDca(data);
+        smartSpinner.classList.add('d-none');
+        smartBtn.disabled = false;
     });
 
     resetBtn.addEventListener('click', async () => {
@@ -168,4 +189,19 @@ function displayBestDays(results){
     });
     html += '</tbody></table>';
     document.getElementById('best-days').innerHTML = html;
+}
+
+function displaySmartDca(data){
+    let html = '<table class="table table-striped table-responsive">';
+    html += '<thead><tr><th>Fréquence</th><th>Total investi</th><th>BTC accumulé</th><th>Valeur finale</th><th>Bag utilisé</th><th>Bag restant</th><th>Performance %</th></tr></thead><tbody>';
+    html += `<tr><td>${data.frequency}</td><td>${data.total_invested.toFixed(2)} USD</td><td>${data.btc_total.toFixed(8)} BTC</td><td>${data.final_value.toFixed(2)} USD</td><td>${data.bag_used.toFixed(2)} USD</td><td>${data.bag_remaining.toFixed(2)} USD</td><td>${data.performance_pct.toFixed(2)}%</td></tr>`;
+    html += '</tbody></table>';
+    const bagTotal = data.bag_used + data.bag_remaining;
+    if(bagTotal > 0){
+        const pctBagInvested = (data.bag_used / bagTotal * 100).toFixed(2);
+        const pctBagLeft = (data.bag_remaining / bagTotal * 100).toFixed(2);
+        html += `<p>${pctBagInvested}% du capital injecté via le bag</p>`;
+        html += `<p>${pctBagLeft}% du bag resté inutilisé à la fin</p>`;
+    }
+    smartDiv.innerHTML = html;
 }
