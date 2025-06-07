@@ -70,7 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify({ amount, start, frequency: freq })
         });
         const data = await res.json();
-        displaySmartDca(data);
+        if(!res.ok){
+            smartDiv.innerHTML = '<span class="text-danger">Erreur : ' + (data.error || 'inconnue') + '</span>';
+        }else{
+            displaySmartDca(data);
+        }
         smartSpinner.classList.add('d-none');
         smartBtn.disabled = false;
     });
@@ -198,10 +202,13 @@ function displaySmartDca(data){
     html += '</tbody></table>';
     const bagTotal = data.bag_used + data.bag_remaining;
     if(bagTotal > 0){
-        const pctBagInvested = (data.bag_used / bagTotal * 100).toFixed(2);
-        const pctBagLeft = (data.bag_remaining / bagTotal * 100).toFixed(2);
-        html += `<p>${pctBagInvested}% du capital injecté via le bag</p>`;
-        html += `<p>${pctBagLeft}% du bag resté inutilisé à la fin</p>`;
+        const pctBagUsed = (data.bag_used / bagTotal * 100).toFixed(2);
+        const pctNotInvested = (data.bag_remaining / (data.total_invested + data.bag_remaining) * 100).toFixed(2);
+        html += `<p>${pctBagUsed}% du bag utilisé</p>`;
+        html += `<p>${pctNotInvested}% du capital non investi</p>`;
+        if(data.bag_remaining / bagTotal > 0.5){
+            html += '<p class="text-warning">⚠️ Plus de 50% du bag n\'a jamais été utilisé</p>';
+        }
     }
     smartDiv.innerHTML = html;
 }

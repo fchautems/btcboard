@@ -7,11 +7,6 @@ import calendar
 import pandas as pd
 import logging
 
-# Parameters for smart DCA based on Fear & Greed Index
-FGI_THRESHOLD_HIGH = 75
-FGI_THRESHOLD_LOW = 30
-BONUS_FROM_BAG_PCT = 0.20
-MAX_BONUS_FROM_BAG = 300.0
 
 DB_NAME = 'btc.db'
 CSV_FILE = 'data.csv'
@@ -174,6 +169,12 @@ def dca():
 @app.route('/api/smart-dca', methods=['POST'])
 def smart_dca():
     """DCA adjusted using Fear & Greed Index."""
+    # Parameters specific to the smart DCA logic
+    fgi_threshold_high = 75
+    fgi_threshold_low = 30
+    bonus_from_bag_pct = 0.20
+    max_bonus_from_bag = 300
+
     data = request.get_json()
     logging.info("/api/smart-dca params: %s", data)
     amount = float(data.get('amount'))
@@ -198,18 +199,25 @@ def smart_dca():
             continue
         fg = r['fg']
         bonus = 0.0
-        if fg >= FGI_THRESHOLD_HIGH:
+        action = "invest"
+        if fg >= fgi_threshold_high:
             bag += amount
-            continue
-        elif fg <= FGI_THRESHOLD_LOW:
-            bonus = min(bag * BONUS_FROM_BAG_PCT, MAX_BONUS_FROM_BAG)
+            action = "to_bag"
+        elif fg <= fgi_threshold_low:
+            bonus = min(bag * bonus_from_bag_pct, max_bonus_from_bag)
             bag -= bonus
+            action = "bonus"
 
-        invest_amount = amount + bonus
-        btc = invest_amount / r['price']
-        btc_total += btc
-        invested += invest_amount
-        bag_used += bonus
+        if action != "to_bag":
+            invest_amount = amount + bonus
+            btc = invest_amount / r['price']
+            btc_total += btc
+            invested += invest_amount
+            bag_used += bonus
+        logging.info(
+            "date=%s fg=%s action=%s invest=%.2f bonus=%.2f bag=%.2f btc=%.8f",
+            r['date'], fg, action, amount, bonus, bag, btc_total
+        )
 
     final_value = btc_total * last_price if rows else 0
     performance = ((final_value - invested) / invested * 100) if invested else 0
