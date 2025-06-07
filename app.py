@@ -5,6 +5,12 @@ from flask import Flask, jsonify, request, render_template
 import calendar
 import pandas as pd
 
+# Parameters for smart DCA based on Fear & Greed Index
+FGI_THRESHOLD_HIGH = 75
+FGI_THRESHOLD_LOW = 30
+BONUS_FROM_BAG_PCT = 0.20
+MAX_BONUS_FROM_BAG = 300.0
+
 DB_NAME = 'btc.db'
 CSV_FILE = 'data.csv'
 
@@ -125,6 +131,60 @@ def dca():
         'performance_pct': performance,
         'progress': progress,
         'purchases': purchases
+    }
+    return jsonify(result)
+
+
+@app.route('/api/smart-dca', methods=['POST'])
+def smart_dca():
+    """DCA adjusted using Fear & Greed Index."""
+    data = request.get_json()
+    amount = float(data.get('amount'))
+    start = data.get('start')
+    freq = data.get('frequency')
+
+    conn = get_db_connection()
+    rows = conn.execute('SELECT date, price, fg FROM data WHERE date >= ? ORDER BY date', (start,)).fetchall()
+    conn.close()
+
+    step = {'weekly': 7, 'monthly': 30}.get(freq)
+    if step is None:
+        return jsonify({'error': 'frequency must be weekly or monthly'}), 400
+
+    btc_total = invested = 0.0
+    bag = bag_used = 0.0
+
+    last_price = rows[-1]['price'] if rows else 0
+
+    for i, r in enumerate(rows):
+        if i % step != 0:
+            continue
+        fg = r['fg']
+        bonus = 0.0
+        if fg >= FGI_THRESHOLD_HIGH:
+            bag += amount
+            continue
+        elif fg <= FGI_THRESHOLD_LOW:
+            bonus = min(bag * BONUS_FROM_BAG_PCT, MAX_BONUS_FROM_BAG)
+            bag -= bonus
+
+        invest_amount = amount + bonus
+        btc = invest_amount / r['price']
+        btc_total += btc
+        invested += invest_amount
+        bag_used += bonus
+
+    final_value = btc_total * last_price if rows else 0
+    performance = ((final_value - invested) / invested * 100) if invested else 0
+
+    result = {
+        'frequency': freq,
+        'total_invested': invested,
+        'btc_total': btc_total,
+        'final_value': final_value,
+        'bag_used': bag_used,
+        'bag_remaining': bag,
+        'performance_pct': performance,
     }
     return jsonify(result)
 
