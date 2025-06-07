@@ -1,3 +1,5 @@
+let smartDiv;
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('dca-form');
     const calcBtn = form.querySelector('button[type="submit"]');
@@ -11,7 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const bestDiv = document.getElementById('best-days');
     const smartBtn = document.getElementById('smart-dca-btn');
     const smartSpinner = document.getElementById('smart-spinner');
-    const smartDiv = document.getElementById('smart-results');
+    smartDiv = document.getElementById('smart-dca-result');
+
+    const fgHighInput = document.getElementById('fg_threshold_high');
+    const fgLowInput = document.getElementById('fg_threshold_low');
+    const bagPctInput = document.getElementById('bag_bonus_pct');
+    const bagMaxInput = document.getElementById('bag_bonus_max');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -64,10 +71,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const amount = parseFloat(document.getElementById('amount').value);
         const start = document.getElementById('start').value;
         const freq = document.getElementById('frequency').value;
+        const body = {
+            amount,
+            start,
+            frequency: freq,
+            fg_threshold_high: parseFloat(fgHighInput.value),
+            fg_threshold_low: parseFloat(fgLowInput.value),
+            bag_bonus_pct: parseFloat(bagPctInput.value),
+            bag_bonus_max: parseFloat(bagMaxInput.value)
+        };
         const res = await fetch('/api/smart-dca', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, start, frequency: freq })
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if(!res.ok){
