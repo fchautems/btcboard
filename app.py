@@ -9,9 +9,15 @@ import logging
 import tempfile
 import traceback
 
-APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(tempfile.gettempdir(), 'btc.db')
-CSV_FILE = os.path.join(APP_ROOT, 'data.csv')
+import os
+import tempfile
+
+# Si on est sur Render, utiliser le dossier racine du projet
+APP_ROOT = "/opt/render/project" if os.environ.get("RENDER") else os.path.dirname(os.path.abspath(__file__))
+
+CSV_FILE = os.path.join(APP_ROOT, "data.csv")
+DB_NAME = os.path.join(tempfile.gettempdir(), "btc.db")
+
 
 print("=== DEBUG CHEMINS ===")
 print("APP_ROOT :", APP_ROOT)
