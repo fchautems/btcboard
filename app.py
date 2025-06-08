@@ -13,6 +13,12 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(tempfile.gettempdir(), 'btc.db')
 CSV_FILE = os.path.join(APP_ROOT, 'data.csv')
 
+print("=== DEBUG CHEMINS ===")
+print("APP_ROOT :", APP_ROOT)
+print("DB_NAME  :", DB_NAME)
+print("CSV_FILE :", CSV_FILE)
+print("=====================")
+
 app = Flask(__name__)
 
 logging.basicConfig(
@@ -49,7 +55,8 @@ def log_request_end(response):
 def init_db(force: bool = False):
     """Create the SQLite database from the CSV file."""
     try:
-        print(f"Chemin absolu de data.csv : {CSV_FILE}")
+                print(f"Chemin absolu de data.csv : {CSV_FILE}")
+        print(f"Chemin absolu de la base : {DB_NAME}")
         if force and os.path.exists(DB_NAME):
             os.remove(DB_NAME)
         if force or not os.path.exists(DB_NAME):
@@ -76,8 +83,6 @@ def init_db(force: bool = False):
     except Exception as e:
         print("❌ Erreur dans init_db :", e)
         raise
-
-
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
