@@ -20,21 +20,23 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 CSV_FILE = os.path.join(APP_ROOT, "data.csv")
 DB_NAME = os.path.join(tempfile.gettempdir(), "btc.db")
-
-
-print("=== DEBUG CHEMINS ===")
-print("APP_ROOT :", APP_ROOT)
-print("DB_NAME  :", DB_NAME)
-print("CSV_FILE :", CSV_FILE)
-print("=====================")
-
-app = Flask(__name__)
+LOG_FILE = os.path.join(tempfile.gettempdir(), "btcboard.log")
 
 logging.basicConfig(
-    #filename='btcboard.log',
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s'
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
 )
+
+logging.info("=== DEBUG CHEMINS ===")
+logging.info("APP_ROOT : %s", APP_ROOT)
+logging.info("DB_NAME  : %s", DB_NAME)
+logging.info("CSV_FILE : %s", CSV_FILE)
+logging.info("=====================")
+app = Flask(__name__)
 
 @app.before_request
 def log_request_start():
@@ -62,16 +64,15 @@ def log_request_end(response):
 
 
 def init_db(force: bool = False):
-    print("on est dedans")
     """Create the SQLite database from the CSV file."""
     try:
-        print(f"Chemin absolu de data.csv : {CSV_FILE}")
-        print(f"Chemin absolu de la base : {DB_NAME}")
+        logging.info("Chemin absolu de data.csv : %s", CSV_FILE)
+        logging.info("Chemin absolu de la base : %s", DB_NAME)
         if force and os.path.exists(DB_NAME):
             os.remove(DB_NAME)
         if force or not os.path.exists(DB_NAME):
             df = pd.read_csv(CSV_FILE)
-            print("Lecture de data.csv OK, lignes :", len(df))
+            logging.info("Lecture de data.csv OK, lignes : %d", len(df))
             df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y')
             df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
             df['Price'] = df['Price'].str.replace(',', '.').astype(float)
@@ -87,11 +88,11 @@ def init_db(force: bool = False):
                           (row['Date'], row['Price'], int(row['fg'])))
             conn.commit()
             conn.close()
-            print("Création de btc.db terminée")
+            logging.info("Création de btc.db terminée")
         else:
-            print("btc.db déjà présent")
+            logging.info("btc.db déjà présent")
     except Exception as e:
-        print("❌ Erreur dans init_db :", e)
+        logging.error("❌ Erreur dans init_db : %s", e)
         raise
 
 init_db(force=True)

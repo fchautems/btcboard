@@ -23,6 +23,16 @@ form {
 
 canvas {
     margin-top: 40px;
+    width: 100% !important;
+}
+
+@media (max-width: 576px) {
+    body {
+        padding: 10px;
+    }
+    form {
+        padding: 15px;
+    }
 }
 
 #reset-msg {
