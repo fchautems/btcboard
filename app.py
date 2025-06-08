@@ -49,25 +49,35 @@ def log_request_end(response):
 
 def init_db(force: bool = False):
     """Create the SQLite database from the CSV file."""
-    if force and os.path.exists(DB_NAME):
-        os.remove(DB_NAME)
-    if force or not os.path.exists(DB_NAME):
-        df = pd.read_csv(CSV_FILE)
-        df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y')
-        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
-        df['Price'] = df['Price'].str.replace(',', '.').astype(float)
-        df.rename(columns={'Fear and Greed': 'fg'}, inplace=True)
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE data
-                     (date TEXT PRIMARY KEY,
-                      price REAL,
-                      fg INTEGER)''')
-        for _, row in df.iterrows():
-            c.execute('INSERT INTO data VALUES (?,?,?)',
-                      (row['Date'], row['Price'], int(row['fg'])))
-        conn.commit()
-        conn.close()
+    try:
+        print(f"Chemin absolu de data.csv : {CSV_FILE}")
+        if force and os.path.exists(DB_NAME):
+            os.remove(DB_NAME)
+        if force or not os.path.exists(DB_NAME):
+            df = pd.read_csv(CSV_FILE)
+            print("Lecture de data.csv OK, lignes :", len(df))
+            df['Date'] = pd.to_datetime(df['Date'], format='%d.%m.%Y')
+            df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+            df['Price'] = df['Price'].str.replace(',', '.').astype(float)
+            df.rename(columns={'Fear and Greed': 'fg'}, inplace=True)
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute('''CREATE TABLE data
+                         (date TEXT PRIMARY KEY,
+                          price REAL,
+                          fg INTEGER)''')
+            for _, row in df.iterrows():
+                c.execute('INSERT INTO data VALUES (?,?,?)',
+                          (row['Date'], row['Price'], int(row['fg'])))
+            conn.commit()
+            conn.close()
+            print("Création de btc.db terminée")
+        else:
+            print("btc.db déjà présent")
+    except Exception as e:
+        print("❌ Erreur dans init_db :", e)
+        raise
+
 
 
 def get_db_connection():
