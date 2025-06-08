@@ -12,8 +12,11 @@ import traceback
 import os
 import tempfile
 
-# Si on est sur Render, utiliser le dossier racine du projet
-APP_ROOT = "/opt/render/project" if os.environ.get("RENDER") else os.path.dirname(os.path.abspath(__file__))
+# Détermination du dossier racine du projet
+# Sur Render, le code est placé dans `/opt/render/project/src` alors que
+# localement il se trouve dans le répertoire courant. Utiliser le
+# répertoire contenant ce fichier fonctionne dans les deux cas.
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 CSV_FILE = os.path.join(APP_ROOT, "data.csv")
 DB_NAME = os.path.join(tempfile.gettempdir(), "btc.db")
