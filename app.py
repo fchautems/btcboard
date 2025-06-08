@@ -55,7 +55,7 @@ def log_request_end(response):
 def init_db(force: bool = False):
     """Create the SQLite database from the CSV file."""
     try:
-                print(f"Chemin absolu de data.csv : {CSV_FILE}")
+        print(f"Chemin absolu de data.csv : {CSV_FILE}")
         print(f"Chemin absolu de la base : {DB_NAME}")
         if force and os.path.exists(DB_NAME):
             os.remove(DB_NAME)
