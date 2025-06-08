@@ -104,40 +104,41 @@ document.addEventListener('DOMContentLoaded', () => {
         smartBtn.disabled = false;
     });
 
-    optBtn.addEventListener('click', async () => {
-        const TOTAL = 7000;
+    optBtn.addEventListener('click', () => {
         optBtn.disabled = true;
         optSpinner.classList.remove('d-none');
         optDiv.innerHTML = '<em>Optimisation en cours...</em>';
         if(optStatus) optStatus.textContent = 'Optimisation en cours...';
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += 50;
-            if(progress > TOTAL) progress = TOTAL;
-            if(optStatus) optStatus.textContent = `Test ${progress} / ${TOTAL}`;
-        }, 100);
+
         const amount = parseFloat(document.getElementById('amount').value);
         const start = document.getElementById('start').value;
         const freq = document.getElementById('frequency').value;
-        const res = await fetch('/api/optimize-smart-dca', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, start, frequency: freq })
-        });
-        clearInterval(interval);
-        const data = await res.json();
-        if(!res.ok){
-            optDiv.innerHTML = '<span class="text-danger">Erreur : ' + (data.error || 'inconnue') + '</span>';
-            if(optStatus) optStatus.textContent = '';
-        }else{
-            displayOptimization(data);
-            if(optStatus) {
-                const perf = data.best ? data.best.performance_pct.toFixed(2) : 'N/A';
-                optStatus.textContent = `Optimisation terminée : ${data.tested} tests, meilleure perf : ${perf} %`;
+        const url = `/api/optimize-smart-dca-stream?amount=${amount}&start=${start}&frequency=${freq}`;
+        const es = new EventSource(url);
+        es.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if(data.phase === 'primary_start'){
+                if(optStatus) optStatus.textContent = `Test 0 / ${data.total}`;
+            }else if(data.phase === 'primary_progress'){
+                if(optStatus) optStatus.textContent = `Test ${data.count} / ${data.total}`;
+            }else if(data.phase === 'primary_end'){
+                if(optStatus) optStatus.innerHTML = `Raffinement autour du minimum trouvé...<br>Test 0 / ${data.total_refine} \u2013 meilleure perf : ${data.best.performance_pct.toFixed(2)} %`;
+            }else if(data.phase === 'refine_progress'){
+                if(optStatus) optStatus.innerHTML = `Raffinement autour du minimum trouvé...<br>Test ${data.count} / ${data.total} \u2013 meilleure perf : ${data.best_perf.toFixed(2)} %`;
+            }else if(data.phase === 'finish'){
+                es.close();
+                if(optStatus) optStatus.textContent = `Optimisation terminée : ${data.tested_phase1 + data.tested_phase2} tests, meilleure perf : ${data.best.performance_pct.toFixed(2)} %`;
+                displayOptimization(data);
+                optSpinner.classList.add('d-none');
+                optBtn.disabled = false;
             }
-        }
-        optSpinner.classList.add('d-none');
-        optBtn.disabled = false;
+        };
+        es.onerror = () => {
+            es.close();
+            optSpinner.classList.add('d-none');
+            optBtn.disabled = false;
+            if(optStatus) optStatus.textContent = 'Erreur lors de l\'optimisation';
+        };
     });
 
     resetBtn.addEventListener('click', async () => {
@@ -281,7 +282,13 @@ function displaySmartDca(data){
 }
 
 function displayOptimization(data){
-    let html = `<p>Combinaisons testées : ${data.tested}</p>`;
+    let html = '';
+    if(data.tested_phase1 !== undefined){
+        html += `<p>Tests phase 1 : ${data.tested_phase1}</p>`;
+        html += `<p>Tests phase 2 : ${data.tested_phase2}</p>`;
+    }else if(data.tested !== undefined){
+        html += `<p>Combinaisons testées : ${data.tested}</p>`;
+    }
     if(data.best){
         html += '<h5>Meilleure configuration</h5>';
         html += '<ul class="list-group mb-3">';
