@@ -442,4 +442,8 @@ def reset_db():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True)
+
+    port = int(os.environ.get("PORT", 5000))  # 5000 par défaut en local, port Render sinon
+    debug_mode = os.environ.get("RENDER", "") == ""
+
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
