@@ -17,11 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const optBtn = document.getElementById('opt-smart-dca-btn');
     const optSpinner = document.getElementById('opt-smart-spinner');
     const optDiv = document.getElementById('opt-smart-result');
+    const optStatus = document.getElementById('optimization-status');
 
     const fgHighInput = document.getElementById('fg_threshold_high');
     const fgLowInput = document.getElementById('fg_threshold_low');
     const bagPctInput = document.getElementById('bag_bonus_pct');
     const bagMaxInput = document.getElementById('bag_bonus_max');
+
+    // Default values
+    document.getElementById('amount').value = 100;
+    document.getElementById('start').value = '2018-01-01';
+    document.getElementById('frequency').value = 'monthly';
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -99,9 +105,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     optBtn.addEventListener('click', async () => {
+        const TOTAL = 7000;
         optBtn.disabled = true;
         optSpinner.classList.remove('d-none');
         optDiv.innerHTML = '<em>Optimisation en cours...</em>';
+        if(optStatus) optStatus.textContent = 'Optimisation en cours...';
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 50;
+            if(progress > TOTAL) progress = TOTAL;
+            if(optStatus) optStatus.textContent = `Test ${progress} / ${TOTAL}`;
+        }, 100);
         const amount = parseFloat(document.getElementById('amount').value);
         const start = document.getElementById('start').value;
         const freq = document.getElementById('frequency').value;
@@ -110,11 +124,17 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount, start, frequency: freq })
         });
+        clearInterval(interval);
         const data = await res.json();
         if(!res.ok){
             optDiv.innerHTML = '<span class="text-danger">Erreur : ' + (data.error || 'inconnue') + '</span>';
+            if(optStatus) optStatus.textContent = '';
         }else{
             displayOptimization(data);
+            if(optStatus) {
+                const perf = data.best ? data.best.performance_pct.toFixed(2) : 'N/A';
+                optStatus.textContent = `Optimisation terminée : ${data.tested} tests, meilleure perf : ${perf} %`;
+            }
         }
         optSpinner.classList.add('d-none');
         optBtn.disabled = false;
@@ -227,20 +247,20 @@ function displayResults(data){
 
 function displayBestDays(results){
     results.sort((a,b)=>b.performance_pct - a.performance_pct);
-    let html = '<table class="table table-striped table-responsive">';
+    let html = '<div class="table-responsive"><table class="table table-striped">';
     html += '<thead><tr><th>Fréquence</th><th>Jour</th><th>Nombre d\'achats</th><th>Total investi</th><th>Valeur finale</th><th>Performance %</th></tr></thead><tbody>';
     results.forEach(r => {
         html += `<tr><td>${r.frequency}</td><td>${r.day}</td><td>${r.num_purchases}</td><td>${r.total_invested.toFixed(2)} USD</td><td>${r.final_value.toFixed(2)} USD</td><td>${r.performance_pct.toFixed(2)}%</td></tr>`;
     });
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     document.getElementById('best-days').innerHTML = html;
 }
 
 function displaySmartDca(data){
-    let html = '<table class="table table-striped table-responsive">';
+    let html = '<div class="table-responsive"><table class="table table-striped">';
     html += '<thead><tr><th>Fréquence</th><th>Total investi</th><th>BTC accumulé</th><th>Valeur finale</th><th>Bag utilisé</th><th>Bag restant</th><th>Performance %</th></tr></thead><tbody>';
     html += `<tr><td>${data.frequency}</td><td>${data.total_invested.toFixed(2)} USD</td><td>${data.btc_total.toFixed(8)} BTC</td><td>${data.final_value.toFixed(2)} USD</td><td>${data.bag_used.toFixed(2)} USD</td><td>${data.bag_remaining.toFixed(2)} USD</td><td>${data.performance_pct.toFixed(2)}%</td></tr>`;
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     const bagTotal = data.bag_used + data.bag_remaining;
     if(bagTotal > 0){
         const pctBagUsed = (data.bag_used / bagTotal * 100).toFixed(2);
@@ -251,12 +271,12 @@ function displaySmartDca(data){
             html += '<p class="text-warning">⚠️ Plus de 50% du bag n\'a jamais été utilisé</p>';
         }
     }
-    html += '<table class="table table-striped table-responsive mt-3">';
+    html += '<div class="table-responsive mt-3"><table class="table table-striped">';
     html += '<thead><tr><th>Date</th><th>FGI</th><th>Action</th><th>Montant investi</th><th>Bonus utilisé</th><th>Total investi</th><th>Bag après action</th><th>BTC acheté</th></tr></thead><tbody>';
     data.history.forEach(h => {
         html += `<tr><td>${h.date}</td><td>${h.fgi}</td><td>${h.action}</td><td>${h.amount.toFixed(2)}</td><td>${h.bonus.toFixed(2)}</td><td>${h.total.toFixed(2)}</td><td>${h.bag.toFixed(2)}</td><td>${h.btc.toFixed(8)}</td></tr>`;
     });
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     smartDiv.innerHTML = html;
 }
 
