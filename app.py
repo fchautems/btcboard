@@ -91,6 +91,9 @@ def init_db(force: bool = False):
         print("❌ Erreur dans init_db :", e)
         raise
 
+init_db(force=True)
+
+
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -471,12 +474,12 @@ def reset_db():
 
 
 if __name__ == '__main__':
-    try:
-        print("avant init")
-        init_db(force=True)  # Toujours forcer la création, base volatile
-        print("✅ Base de données initialisée")
-    except Exception as e:
-        print("❌ Erreur init_db:", e)
+    # try:
+        # print("avant init")
+        # init_db(force=True)  # Toujours forcer la création, base volatile
+        # print("✅ Base de données initialisée")
+    # except Exception as e:
+        # print("❌ Erreur init_db:", e)
 
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get("RENDER", "") == ""
