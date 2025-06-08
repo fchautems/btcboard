@@ -608,6 +608,7 @@ def optimize_smart_dca_stream():
             'phase': 'primary_end',
             'best': best_primary,
             'total_refine': total_refine,
+            'count_primary': count_primary,
         }
         yield f"data:{json.dumps(payload)}\n\n"
 
@@ -649,6 +650,7 @@ def optimize_smart_dca_stream():
             'tested_phase1': count_primary,
             'tested_phase2': refine_count,
             'best': best,
+            'best_initial_perf': best_primary['performance_pct'],
         }
         yield f"data:{json.dumps(payload)}\n\n"
 
