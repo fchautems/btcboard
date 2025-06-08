@@ -436,6 +436,14 @@ def optimize_smart_dca():
     second = None
     count = 0
 
+    total_primary = (
+        len(range(60, 95, 5))
+        * len(range(5, 55, 5))
+        * len(range(5, 55, 5))
+        * len(range(50, 550, 50))
+    )
+    logging.info("Starting optimization: %d combinations", total_primary)
+
     for high in range(60, 95, 5):
         for low in range(5, 55, 5):
             for pct in range(5, 55, 5):
@@ -456,6 +464,13 @@ def optimize_smart_dca():
                         best = entry
                     elif not second or entry['performance_pct'] > second['performance_pct']:
                         second = entry
+                    if count % 500 == 0 or count == total_primary:
+                        logging.info(
+                            "Progress: %d/%d (%.1f%%)",
+                            count,
+                            total_primary,
+                            count / total_primary * 100,
+                        )
 
     # refine search around best candidate with step of 1
     if best:
@@ -464,18 +479,21 @@ def optimize_smart_dca():
         base_pct = best['bag_bonus_pct']
         base_bmax = best['bag_bonus_max']
 
-        for high in range(base_high - 5, base_high + 6):
-            if high < 0 or high > 100:
-                continue
-            for low in range(base_low - 5, base_low + 6):
-                if low < 0 or low > 100:
-                    continue
-                for pct in range(base_pct - 5, base_pct + 6):
-                    if pct < 0 or pct > 100:
-                        continue
-                    for bmax in range(base_bmax - 5, base_bmax + 6):
-                        if bmax <= 0:
-                            continue
+        range_high = [h for h in range(base_high - 5, base_high + 6) if 0 <= h <= 100]
+        range_low = [l for l in range(base_low - 5, base_low + 6) if 0 <= l <= 100]
+        range_pct = [p for p in range(base_pct - 5, base_pct + 6) if 0 <= p <= 100]
+        range_bmax = [b for b in range(base_bmax - 5, base_bmax + 6) if b > 0]
+        total_refine = (
+            len(range_high) * len(range_low) * len(range_pct) * len(range_bmax)
+        )
+        logging.info(
+            "Refine search around best candidate: %d combinations", total_refine
+        )
+
+        for high in range_high:
+            for low in range_low:
+                for pct in range_pct:
+                    for bmax in range_bmax:
                         result = simulate_smart_dca_rows(
                             rows, step, amount, high, low, pct / 100.0, bmax
                         )
@@ -495,6 +513,15 @@ def optimize_smart_dca():
                             or entry['performance_pct'] > second['performance_pct']
                         ):
                             second = entry
+                        if (count - total_primary) % 500 == 0 or (
+                            count - total_primary
+                        ) == total_refine:
+                            logging.info(
+                                "Refine progress: %d/%d (%.1f%%)",
+                                count - total_primary,
+                                total_refine,
+                                (count - total_primary) / total_refine * 100,
+                            )
 
     response = {'tested': count, 'best': best}
     if second:
