@@ -1,7 +1,8 @@
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, jsonify, request, render_template, g
+from flask import Flask, jsonify, request, render_template, g, Response, stream_with_context
+import json
 import time
 import calendar
 import pandas as pd
@@ -528,6 +529,132 @@ def optimize_smart_dca():
         response['second_best'] = second
     logging.info("/api/optimize-smart-dca tested=%d best=%s", count, best)
     return jsonify(response)
+
+
+@app.route('/api/optimize-smart-dca-stream')
+def optimize_smart_dca_stream():
+    """Stream smart DCA optimization progress as Server-Sent Events."""
+    amount = float(request.args.get('amount', 0))
+    start = request.args.get('start')
+    freq = request.args.get('frequency')
+
+    step = {'weekly': 7, 'monthly': 30}.get(freq)
+    if step is None:
+        return jsonify({'error': 'frequency must be weekly or monthly'}), 400
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        'SELECT date, price, fg FROM data WHERE date >= ? ORDER BY date',
+        (start,),
+    ).fetchall()
+    conn.close()
+
+    def gen():
+        best = None
+        second = None
+        count_primary = 0
+        total_primary = (
+            len(range(60, 95, 5))
+            * len(range(5, 55, 5))
+            * len(range(5, 55, 5))
+            * len(range(50, 550, 50))
+        )
+        yield f"data:{json.dumps({'phase':'primary_start','total':total_primary})}\n\n"
+
+        for high in range(60, 95, 5):
+            for low in range(5, 55, 5):
+                for pct in range(5, 55, 5):
+                    for bmax in range(50, 550, 50):
+                        result = simulate_smart_dca_rows(
+                            rows, step, amount, high, low, pct / 100.0, bmax
+                        )
+                        count_primary += 1
+                        entry = {
+                            'fg_threshold_high': high,
+                            'fg_threshold_low': low,
+                            'bag_bonus_pct': pct,
+                            'bag_bonus_max': bmax,
+                            'performance_pct': result['performance_pct'],
+                        }
+                        if not best or entry['performance_pct'] > best['performance_pct']:
+                            second = best
+                            best = entry
+                        elif not second or entry['performance_pct'] > second['performance_pct']:
+                            second = entry
+                        if count_primary % 100 == 0 or count_primary == total_primary:
+                            payload = {
+                                'phase': 'primary_progress',
+                                'count': count_primary,
+                                'total': total_primary,
+                            }
+                            yield f"data:{json.dumps(payload)}\n\n"
+
+        best_primary = best
+
+        base_high = best['fg_threshold_high']
+        base_low = best['fg_threshold_low']
+        base_pct = best['bag_bonus_pct']
+        base_bmax = best['bag_bonus_max']
+
+        range_high = [h for h in range(base_high - 5, base_high + 6) if 0 <= h <= 100]
+        range_low = [l for l in range(base_low - 5, base_low + 6) if 0 <= l <= 100]
+        range_pct = [p for p in range(base_pct - 5, base_pct + 6) if 0 <= p <= 100]
+        range_bmax = [b for b in range(base_bmax - 50, base_bmax + 51, 10) if b > 0]
+
+        total_refine = (
+            len(range_high) * len(range_low) * len(range_pct) * len(range_bmax)
+        )
+        payload = {
+            'phase': 'primary_end',
+            'best': best_primary,
+            'total_refine': total_refine,
+            'count_primary': count_primary,
+        }
+        yield f"data:{json.dumps(payload)}\n\n"
+
+        refine_count = 0
+        for high in range_high:
+            for low in range_low:
+                for pct in range_pct:
+                    for bmax in range_bmax:
+                        result = simulate_smart_dca_rows(
+                            rows, step, amount, high, low, pct / 100.0, bmax
+                        )
+                        refine_count += 1
+                        entry = {
+                            'fg_threshold_high': high,
+                            'fg_threshold_low': low,
+                            'bag_bonus_pct': pct,
+                            'bag_bonus_max': bmax,
+                            'performance_pct': result['performance_pct'],
+                        }
+                        if entry['performance_pct'] > best['performance_pct']:
+                            second = best
+                            best = entry
+                        elif (
+                            not second
+                            or entry['performance_pct'] > second['performance_pct']
+                        ):
+                            second = entry
+                        if refine_count % 100 == 0 or refine_count == total_refine:
+                            payload = {
+                                'phase': 'refine_progress',
+                                'count': refine_count,
+                                'total': total_refine,
+                                'best_perf': best['performance_pct'],
+                            }
+                            yield f"data:{json.dumps(payload)}\n\n"
+
+        payload = {
+            'phase': 'finish',
+            'tested_phase1': count_primary,
+            'tested_phase2': refine_count,
+            'best': best,
+            'best_initial_perf': best_primary['performance_pct'],
+        }
+        yield f"data:{json.dumps(payload)}\n\n"
+
+    return Response(stream_with_context(gen()), mimetype='text/event-stream')
 
 
 @app.route('/reset-db', methods=['POST'])
