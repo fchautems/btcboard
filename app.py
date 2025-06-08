@@ -28,7 +28,7 @@ print("=====================")
 app = Flask(__name__)
 
 logging.basicConfig(
-    filename='btcboard.log',
+    #filename='btcboard.log',
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
@@ -59,6 +59,7 @@ def log_request_end(response):
 
 
 def init_db(force: bool = False):
+    print("on est dedans")
     """Create the SQLite database from the CSV file."""
     try:
         print(f"Chemin absolu de data.csv : {CSV_FILE}")
@@ -471,6 +472,7 @@ def reset_db():
 
 if __name__ == '__main__':
     try:
+        print("avant init")
         init_db(force=True)  # Toujours forcer la création, base volatile
         print("✅ Base de données initialisée")
     except Exception as e:
