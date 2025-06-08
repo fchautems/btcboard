@@ -6,13 +6,12 @@ import time
 import calendar
 import pandas as pd
 import logging
-
+import tempfile
 import traceback
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(APP_ROOT, 'btc.db')
+DB_NAME = os.path.join(tempfile.gettempdir(), 'btc.db')
 CSV_FILE = os.path.join(APP_ROOT, 'data.csv')
-
 
 app = Flask(__name__)
 
@@ -461,7 +460,7 @@ def reset_db():
 
 if __name__ == '__main__':
     try:
-        init_db()
+        init_db(force=True)  # Toujours forcer la création, base volatile
         print("✅ Base de données initialisée")
     except Exception as e:
         print("❌ Erreur init_db:", e)
@@ -469,4 +468,5 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get("RENDER", "") == ""
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
+
 
