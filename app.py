@@ -7,9 +7,12 @@ import calendar
 import pandas as pd
 import logging
 
+import traceback
 
-DB_NAME = 'btc.db'
-CSV_FILE = 'data.csv'
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(APP_ROOT, 'btc.db')
+CSV_FILE = os.path.join(APP_ROOT, 'data.csv')
+
 
 app = Flask(__name__)
 
@@ -25,6 +28,10 @@ def log_request_start():
     g.start_time = time.time()
     logging.info("Started %s %s", request.method, request.path)
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logging.error("Exception: %s\n%s", e, traceback.format_exc())
+    return "Erreur interne : {}".format(e), 500
 
 @app.after_request
 def log_request_end(response):
