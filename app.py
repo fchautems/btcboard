@@ -70,12 +70,14 @@ def get_db_connection():
 
 
 def get_date_range():
-    """Return the min and max dates available in the database."""
-    conn = get_db_connection()
-    row = conn.execute('SELECT MIN(date) as min_date, MAX(date) as max_date FROM data').fetchone()
-    conn.close()
-    return row['min_date'], row['max_date']
-
+    try:
+        conn = get_db_connection()
+        row = conn.execute('SELECT MIN(date) as min_date, MAX(date) as max_date FROM data').fetchone()
+        conn.close()
+        return row['min_date'], row['max_date']
+    except Exception as e:
+        logging.error("Erreur dans get_date_range: %s", e)
+        raise
 
 def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     """Run smart DCA simulation on given rows and return summary metrics."""
@@ -441,9 +443,13 @@ def reset_db():
 
 
 if __name__ == '__main__':
-    init_db()
+    try:
+        init_db()
+        print("✅ Base de données initialisée")
+    except Exception as e:
+        print("❌ Erreur init_db:", e)
 
-    port = int(os.environ.get("PORT", 5000))  # 5000 par défaut en local, port Render sinon
+    port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get("RENDER", "") == ""
-
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
+
