@@ -440,7 +440,9 @@ def optimize_smart_dca():
         for low in range(5, 55, 5):
             for pct in range(5, 55, 5):
                 for bmax in range(50, 550, 50):
-                    result = simulate_smart_dca_rows(rows, step, amount, high, low, pct/100.0, bmax)
+                    result = simulate_smart_dca_rows(
+                        rows, step, amount, high, low, pct / 100.0, bmax
+                    )
                     count += 1
                     entry = {
                         'fg_threshold_high': high,
@@ -454,6 +456,45 @@ def optimize_smart_dca():
                         best = entry
                     elif not second or entry['performance_pct'] > second['performance_pct']:
                         second = entry
+
+    # refine search around best candidate with step of 1
+    if best:
+        base_high = best['fg_threshold_high']
+        base_low = best['fg_threshold_low']
+        base_pct = best['bag_bonus_pct']
+        base_bmax = best['bag_bonus_max']
+
+        for high in range(base_high - 5, base_high + 6):
+            if high < 0 or high > 100:
+                continue
+            for low in range(base_low - 5, base_low + 6):
+                if low < 0 or low > 100:
+                    continue
+                for pct in range(base_pct - 5, base_pct + 6):
+                    if pct < 0 or pct > 100:
+                        continue
+                    for bmax in range(base_bmax - 5, base_bmax + 6):
+                        if bmax <= 0:
+                            continue
+                        result = simulate_smart_dca_rows(
+                            rows, step, amount, high, low, pct / 100.0, bmax
+                        )
+                        count += 1
+                        entry = {
+                            'fg_threshold_high': high,
+                            'fg_threshold_low': low,
+                            'bag_bonus_pct': pct,
+                            'bag_bonus_max': bmax,
+                            'performance_pct': result['performance_pct'],
+                        }
+                        if entry['performance_pct'] > best['performance_pct']:
+                            second = best
+                            best = entry
+                        elif (
+                            not second
+                            or entry['performance_pct'] > second['performance_pct']
+                        ):
+                            second = entry
 
     response = {'tested': count, 'best': best}
     if second:
