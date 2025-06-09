@@ -14,16 +14,18 @@
     <h1 class="my-4 text-center">Bitcoin Dashboard</h1>
     <div class="alert alert-info text-center" id="date-range">Données disponibles : {{ min_date }} à {{ max_date }}</div>
     <div class="mb-3 text-center">
-        <button id="reset-btn" class="btn btn-warning">🔁 Réinitialiser la base de données</button>
+        <button id="reset-btn" class="btn btn-outline-secondary">🔁 Réinitialiser la base de données</button>
         <span id="reset-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
         <div id="reset-msg" class="mt-2"></div>
     </div>
-    <form id="dca-form">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Montant (USD)</label>
-                <input type="number" step="0.01" id="amount" class="form-control" required>
-            </div>
+    <div class="main-settings mb-4">
+        <h5 class="mb-3">Paramètres principaux</h5>
+        <form id="dca-form">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Montant (USD)</label>
+                    <input type="number" step="0.01" id="amount" class="form-control" required>
+                </div>
             <div class="col-md-4">
                 <label class="form-label">Date de début</label>
                 <input type="date" id="start" class="form-control" required>
@@ -36,13 +38,14 @@
                     <option value="monthly">Mensuel</option>
                 </select>
             </div>
-        </div>
-        <button type="submit" class="btn btn-primary mt-3">Calculer</button>
-        <span id="calc-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
-    </form>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Calculer</button>
+            <span id="calc-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+        </form>
+    </div>
 
-    <div class="mt-4">
-        <h5>Paramètres avancés (DCA intelligent)</h5>
+    <div class="advanced-settings mb-4">
+        <h5 class="mb-3">Paramètres avancés (DCA intelligent)</h5>
         <div class="row g-3">
             <div class="col-md-3">
                 <label class="form-label">Seuil haut FGI</label>
@@ -63,20 +66,20 @@
         </div>
     </div>
 
-    <button id="best-days-btn" class="btn btn-info mt-3">🔍 Simuler les meilleurs jours d'investissement</button>
+    <button id="best-days-btn" class="btn btn-outline-secondary mt-3">🔍 Simuler les meilleurs jours d'investissement</button>
     <span id="best-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
     <div id="best-days" class="mt-3"></div>
 
-    <button id="smart-dca-btn" class="btn btn-success mt-3">💡 Simuler un DCA intelligent basé sur le Fear & Greed</button>
+    <button id="smart-dca-btn" class="btn btn-outline-secondary mt-3">💡 Simuler un DCA intelligent basé sur le Fear & Greed</button>
     <span id="smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
     <div id="smart-dca-result" class="mt-3"></div>
 
-    <button id="opt-smart-dca-btn" class="btn btn-primary mt-3">📈 Optimiser la stratégie DCA intelligente</button>
+    <button id="opt-smart-dca-btn" class="btn btn-outline-secondary mt-3">📈 Optimiser la stratégie DCA intelligente</button>
     <span id="opt-smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
     <div id="optimization-status" class="mt-2"></div>
     <div id="opt-smart-result" class="mt-3"></div>
-    
-    <button id="genetic-opt-btn" class="btn btn-warning">⚡ Optimiser par algorithme génétique</button>
+
+    <button id="genetic-opt-btn" class="btn btn-outline-secondary">⚡ Optimiser par algorithme génétique</button>
     <span id="opt-smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
     <div id="genetic-opt-status" class="mt-2"></div>
     <div id="genetic-opt-result" class="mt-2"></div>
