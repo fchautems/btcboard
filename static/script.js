@@ -284,11 +284,11 @@ function displaySmartDca(data){
 function displayOptimization(data){
     if(!data.best) return;
     const totalTests = (data.tested_phase1 ?? 0) + (data.tested_phase2 ?? 0) || data.tested;
-    let html = '';
+    let html = '<p class="fw-bold text-success">✅ Optimisation terminée</p>';
     if(totalTests){
         html += `<p><strong>${totalTests} tests effectués</strong></p>`;
     }
-    html += `<p><strong>Meilleure performance :</strong> ${data.best.performance_pct.toFixed(2)} %</p>`;
+    html += `<p><strong>Meilleure performance globale :</strong> ${data.best.performance_pct.toFixed(2)} %</p>`;
     html += '<div class="table-responsive"><table class="table table-striped">';
     html += '<thead><tr><th>Seuil haut FGI</th><th>Seuil bas FGI</th><th>% du bag utilisé</th><th>Plafond du bonus (USD)</th></tr></thead>';
     html += `<tbody><tr><td>${data.best.fg_threshold_high}</td><td>${data.best.fg_threshold_low}</td><td>${data.best.bag_bonus_pct}</td><td>${data.best.bag_bonus_max}</td></tr></tbody></table></div>`;
