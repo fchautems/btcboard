@@ -23,6 +23,96 @@ document.addEventListener('DOMContentLoaded', () => {
     const fgLowInput = document.getElementById('fg_threshold_low');
     const bagPctInput = document.getElementById('bag_bonus_pct');
     const bagMaxInput = document.getElementById('bag_bonus_max');
+    
+    // ========== OPTIMISATION DCA INTELLIGENTE ==========
+    const optSmartBtn = document.getElementById('opt-smart-dca-btn');
+    const optSmartResult = document.getElementById('opt-smart-result');
+    const optSmartSpinner = document.getElementById('opt-smart-spinner');
+    const optSmartStatus = document.getElementById('optimization-status');
+
+    function resetOptimizationDisplay() {
+        optSmartResult.innerHTML = '';
+        optSmartStatus.innerHTML = '';
+        optSmartSpinner.classList.remove('d-none');
+        optSmartBtn.disabled = true;
+    }
+
+    optSmartBtn.addEventListener('click', function() {
+        resetOptimizationDisplay();
+        optSmartStatus.innerText = 'Optimisation en cours…';
+
+        const amount = document.getElementById('amount').value || 100;
+        const start = document.getElementById('start').value || '2018-01-01';
+        const frequency = document.getElementById('frequency').value || 'monthly';
+
+        fetch('/api/optimize-smart-dca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount, start, frequency })
+        })
+        .then(res => res.json())
+        .then(data => {
+            optSmartSpinner.classList.add('d-none');
+            optSmartBtn.disabled = false;
+
+            let phase1perf = data.phase1_performance !== undefined
+                ? `${data.phase1_tests || 7000} tests → perf max ${data.phase1_performance.toFixed(2)} %`
+                : '';
+            let phase2perf = data.best
+                ? `${data.phase2_tests || '-'} tests → perf finale ${data.best.performance_pct.toFixed(2)} %`
+                : '';
+
+            optSmartStatus.innerHTML = `
+                <span>✅ Optimisation terminée</span><br>
+                <span>Phase 1 : ${phase1perf}</span><br>
+                <span>Phase 2 : ${phase2perf}</span>
+            `;
+
+            // Tableau des meilleurs paramètres
+            if (data.best) {
+                const best = data.best;
+                optSmartResult.innerHTML = `
+                <table class="table table-bordered table-sm mt-2">
+                    <thead><tr>
+                      <th>Paramètre</th><th>Valeur</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr><td>Seuil haut FGI</td><td>${best.fg_threshold_high}</td></tr>
+                      <tr><td>Seuil bas FGI</td><td>${best.fg_threshold_low}</td></tr>
+                      <tr><td>% du bag utilisé</td><td>${best.bag_bonus_pct}</td></tr>
+                      <tr><td>Plafond bonus (USD)</td><td>${best.bag_bonus_max}</td></tr>
+                      <tr><td>Performance finale</td><td>${best.performance_pct.toFixed(2)} %</td></tr>
+                    </tbody>
+                </table>
+                <button id="apply-best-params" class="btn btn-outline-success mb-3">📥 Appliquer ces paramètres</button>
+                `;
+
+                // Pré-remplir automatiquement les champs avancés
+                document.getElementById('fg_threshold_high').value = best.fg_threshold_high;
+                document.getElementById('fg_threshold_low').value  = best.fg_threshold_low;
+                document.getElementById('bag_bonus_pct').value     = best.bag_bonus_pct;
+                document.getElementById('bag_bonus_max').value     = best.bag_bonus_max;
+
+                // Réaction au clic sur le bouton "Appliquer ces paramètres"
+                document.getElementById('apply-best-params').onclick = () => {
+                    document.getElementById('fg_threshold_high').value = best.fg_threshold_high;
+                    document.getElementById('fg_threshold_low').value  = best.fg_threshold_low;
+                    document.getElementById('bag_bonus_pct').value     = best.bag_bonus_pct;
+                    document.getElementById('bag_bonus_max').value     = best.bag_bonus_max;
+                };
+            } else {
+                optSmartResult.innerHTML = `<div class="alert alert-danger">Erreur : aucune configuration optimale trouvée.</div>`;
+            }
+        })
+        .catch(error => {
+            optSmartSpinner.classList.add('d-none');
+            optSmartBtn.disabled = false;
+            optSmartStatus.innerHTML = '<span style="color: red;">Erreur lors de l’optimisation</span>';
+            optSmartResult.innerHTML = `<pre>${error}</pre>`;
+        });
+    });
+    // ========== FIN OPTIMISATION DCA INTELLIGENTE ==========
+
 
     // Default values
     document.getElementById('amount').value = 100;
