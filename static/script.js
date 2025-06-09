@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         smartBtn.disabled = false;
     });
 
+    let phase1Best = null;
     optBtn.addEventListener('click', () => {
         optBtn.disabled = true;
         optSpinner.classList.remove('d-none');
@@ -122,13 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }else if(data.phase === 'primary_progress'){
                 if(optStatus) optStatus.textContent = `Test ${data.count} / ${data.total}`;
             }else if(data.phase === 'primary_end'){
+                phase1Best = data.best;
                 if(optStatus) optStatus.innerHTML = `Raffinement autour du minimum trouvé...<br>Test 0 / ${data.total_refine} \u2013 meilleure perf : ${data.best.performance_pct.toFixed(2)} %`;
             }else if(data.phase === 'refine_progress'){
                 if(optStatus) optStatus.innerHTML = `Raffinement autour du minimum trouvé...<br>Test ${data.count} / ${data.total} \u2013 meilleure perf : ${data.best_perf.toFixed(2)} %`;
             }else if(data.phase === 'finish'){
                 es.close();
                 if(optStatus) optStatus.textContent = '✅ Optimisation terminée';
-                displayOptimization(data);
+                displayOptimization(data, phase1Best);
                 optSpinner.classList.add('d-none');
                 optBtn.disabled = false;
             }
@@ -281,22 +283,29 @@ function displaySmartDca(data){
     smartDiv.innerHTML = html;
 }
 
-function displayOptimization(data){
+function displayOptimization(data, phase1Best){
     if(!data.best) return;
-    const totalTests = (data.tested_phase1 ?? 0) + (data.tested_phase2 ?? 0) || data.tested;
-    let html = '<p class="fw-bold text-success">✅ Optimisation terminée</p>';
-    if(totalTests){
-        html += `<p><strong>${totalTests} tests effectués</strong></p>`;
+    const best = data.best;
+
+    optDiv.innerHTML = '';
+    let html = '<div class="table-responsive"><table class="table table-striped">';
+    html += '<thead><tr><th>Paramètre</th><th>Valeur</th></tr></thead><tbody>';
+    html += `<tr><td>Seuil haut FGI</td><td>${best.fg_threshold_high}</td></tr>`;
+    html += `<tr><td>Seuil bas FGI</td><td>${best.fg_threshold_low}</td></tr>`;
+    html += `<tr><td>% du bag utilisé</td><td>${best.bag_bonus_pct}</td></tr>`;
+    html += `<tr><td>Plafond bonus USD</td><td>${best.bag_bonus_max}</td></tr>`;
+    html += `<tr><td>Performance finale</td><td>${best.performance_pct.toFixed(2)} %</td></tr>`;
+    html += '</tbody></table></div>';
+
+    if(phase1Best){
+        html += `<p>Performance phase 1 : ${phase1Best.performance_pct.toFixed(2)} %</p>`;
     }
-    html += `<p><strong>Meilleure performance globale :</strong> ${data.best.performance_pct.toFixed(2)} %</p>`;
-    html += '<div class="table-responsive"><table class="table table-striped">';
-    html += '<thead><tr><th>Seuil haut FGI</th><th>Seuil bas FGI</th><th>% du bag utilisé</th><th>Plafond du bonus (USD)</th></tr></thead>';
-    html += `<tbody><tr><td>${data.best.fg_threshold_high}</td><td>${data.best.fg_threshold_low}</td><td>${data.best.bag_bonus_pct}</td><td>${data.best.bag_bonus_max}</td></tr></tbody></table></div>`;
+    html += `<p>Performance finale après raffinement : ${best.performance_pct.toFixed(2)} %</p>`;
+
     optDiv.innerHTML = html;
 
-    fgHighInput.value = data.best.fg_threshold_high;
-    fgLowInput.value = data.best.fg_threshold_low;
-    bagPctInput.value = data.best.bag_bonus_pct;
-    bagMaxInput.value = data.best.bag_bonus_max;
-    console.log('Form fields updated with best parameters', data.best);
+    document.getElementById('fg_threshold_high').value = best.fg_threshold_high;
+    document.getElementById('fg_threshold_low').value  = best.fg_threshold_low;
+    document.getElementById('bag_bonus_pct').value     = best.bag_bonus_pct;
+    document.getElementById('bag_bonus_max').value     = best.bag_bonus_max;
 }
