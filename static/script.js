@@ -112,6 +112,73 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     // ========== FIN OPTIMISATION DCA INTELLIGENTE ==========
+    
+    // == ALGO GENETIQUE ==
+    const geneticBtn = document.getElementById('genetic-opt-btn');
+    const geneticStatus = document.getElementById('genetic-opt-status');
+    const geneticResult = document.getElementById('genetic-opt-result');
+
+    if (geneticBtn) {
+        geneticBtn.addEventListener('click', function() {
+            geneticBtn.disabled = true;
+            geneticStatus.innerText = "Optimisation génétique en cours…";
+            geneticResult.innerHTML = "";
+
+            const amount = document.getElementById('amount')?.value || 100;
+            const start = document.getElementById('start')?.value || '2018-01-01';
+            const frequency = document.getElementById('frequency')?.value || 'monthly';
+
+            fetch('/api/genetic-optimize-smart-dca', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount, start, frequency })
+            })
+            .then(res => res.json())
+            .then(data => {
+                geneticStatus.innerHTML = "✅ Optimisation génétique terminée";
+                if (data.best) {
+                    const best = data.best;
+                    geneticResult.innerHTML = `
+                    <table class="table table-bordered table-sm mt-2">
+                        <thead><tr>
+                          <th>Paramètre</th><th>Valeur</th>
+                        </tr></thead>
+                        <tbody>
+                          <tr><td>Seuil haut FGI</td><td>${best.fg_threshold_high}</td></tr>
+                          <tr><td>Seuil bas FGI</td><td>${best.fg_threshold_low}</td></tr>
+                          <tr><td>% du bag utilisé</td><td>${best.bag_bonus_pct}</td></tr>
+                          <tr><td>Plafond bonus (USD)</td><td>${best.bag_bonus_max}</td></tr>
+                          <tr><td>Performance finale</td><td>${best.performance_pct?.toFixed(2)} %</td></tr>
+                        </tbody>
+                    </table>
+                    <button id="apply-gen-best-params" class="btn btn-outline-success mb-3">📥 Appliquer ces paramètres</button>
+                    `;
+                    // Remplissage automatique
+                    document.getElementById('fg_threshold_high').value = best.fg_threshold_high;
+                    document.getElementById('fg_threshold_low').value  = best.fg_threshold_low;
+                    document.getElementById('bag_bonus_pct').value     = best.bag_bonus_pct;
+                    document.getElementById('bag_bonus_max').value     = best.bag_bonus_max;
+                    // Double sécurité (bouton d’application)
+                    document.getElementById('apply-gen-best-params').onclick = () => {
+                        document.getElementById('fg_threshold_high').value = best.fg_threshold_high;
+                        document.getElementById('fg_threshold_low').value  = best.fg_threshold_low;
+                        document.getElementById('bag_bonus_pct').value     = best.bag_bonus_pct;
+                        document.getElementById('bag_bonus_max').value     = best.bag_bonus_max;
+                    };
+                } else {
+                    geneticResult.innerHTML = `<div class="alert alert-danger">Erreur : aucune configuration optimale trouvée.</div>`;
+                }
+                geneticBtn.disabled = false;
+            })
+            .catch(error => {
+                geneticStatus.innerHTML = '<span style="color: red;">Erreur lors de l’optimisation génétique</span>';
+                geneticResult.innerHTML = `<pre>${error}</pre>`;
+                geneticBtn.disabled = false;
+            });
+        });
+    }
+    // == FIN ALGO GENETIQUE ==
+
 
 
     // Default values

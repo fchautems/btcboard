@@ -86,6 +86,125 @@ def init_db(force: bool = False):
 
 init_db(force=True)
 
+@app.route('/api/genetic-optimize-smart-dca', methods=['POST'])
+def genetic_optimize_smart_dca():
+    data = request.get_json()
+    amount = float(data.get('amount', 100))
+    start = data.get('start', '2018-01-01')
+    frequency = data.get('frequency', 'monthly')
+    res = genetic_algorithm(amount, start, frequency)
+    return jsonify({
+        "best": res
+    })
+
+
+def simulate_dca_smart(params, amount, start, frequency):
+    """
+    Calcule la performance d'un DCA intelligent pour un jeu de paramètres.
+    Utilise la même logique que simulate_smart_dca_rows.
+    Retourne uniquement performance_pct (float).
+    """
+    fg_high, fg_low, bag_pct, bag_max = params
+
+    # weekly → 7 jours, monthly → 30 jours
+    step = {'weekly': 7, 'monthly': 30}.get(frequency)
+    if step is None:
+        # Par sécurité : on considère hebdo par défaut
+        step = 7
+
+    # Récupère les données à partir de la date de départ
+    conn = get_db_connection()
+    rows = conn.execute(
+        'SELECT date, price, fg FROM data WHERE date >= ? ORDER BY date',
+        (start,)
+    ).fetchall()
+    conn.close()
+
+    # Appel de votre simulateur déjà existant
+    res = simulate_smart_dca_rows(
+        rows,
+        step,
+        amount,
+        fg_high,
+        fg_low,
+        bag_pct / 100.0,      # votre fonction attend la fraction (0–1)
+        bag_max
+    )
+    return res['performance_pct']
+
+
+    
+def genetic_algorithm(amount, start, frequency):
+    import random
+
+    PARAM_BOUNDS = [
+        (60, 90),   # fg_threshold_high
+        (5, 50),    # fg_threshold_low
+        (5, 50),    # bag_bonus_pct
+        (50, 500),  # bag_bonus_max
+    ]
+    N_PARAMS = len(PARAM_BOUNDS)
+    POP_SIZE = 80
+    N_GEN = 100
+    MUT_PROB = 0.2
+    MUT_RANGE = [1, 1, 2, 20]
+    TOURNAMENT_SIZE = 4
+    ELITE_SIZE = 3
+
+    def random_individual():
+        return [random.randint(a, b) for (a, b) in PARAM_BOUNDS]
+
+    def mutate(indiv):
+        child = indiv[:]
+        for i in range(N_PARAMS):
+            if random.random() < MUT_PROB:
+                a, b = PARAM_BOUNDS[i]
+                v = child[i] + int(random.uniform(-MUT_RANGE[i], MUT_RANGE[i]))
+                child[i] = min(max(v, a), b)
+        return child
+
+    def crossover(ind1, ind2):
+        pt = random.randint(1, N_PARAMS-1)
+        return ind1[:pt] + ind2[pt:], ind2[:pt] + ind1[pt:]
+
+    def tournament(pop, fitnesses, k=TOURNAMENT_SIZE):
+        selected = random.sample(list(zip(pop, fitnesses)), k)
+        selected.sort(key=lambda x: -x[1])
+        return selected[0][0][:]
+
+    # Population initiale
+    population = [random_individual() for _ in range(POP_SIZE)]
+    best_score = -float('inf')
+    best_params = None
+
+    for gen in range(N_GEN):
+        fitnesses = [simulate_dca_smart(ind, amount, start, frequency) for ind in population]
+        gen_best = max(zip(population, fitnesses), key=lambda x: x[1])
+        if gen_best[1] > best_score:
+            best_score = gen_best[1]
+            best_params = gen_best[0][:]
+        # print(f"Génération {gen+1}/{N_GEN} | Best perf = {best_score:.2f} | Params = {best_params}")
+
+        # Elitisme + nouvelle génération
+        next_pop = [x for x,fit in sorted(zip(population, fitnesses), key=lambda x: -x[1])[:ELITE_SIZE]]
+        while len(next_pop) < POP_SIZE:
+            parent1 = tournament(population, fitnesses)
+            parent2 = tournament(population, fitnesses)
+            child1, child2 = crossover(parent1, parent2)
+            next_pop.append(mutate(child1))
+            if len(next_pop) < POP_SIZE:
+                next_pop.append(mutate(child2))
+        population = next_pop[:POP_SIZE]
+
+    # Retour au format attendu
+    return {
+        "fg_threshold_high": best_params[0],
+        "fg_threshold_low":  best_params[1],
+        "bag_bonus_pct":     best_params[2],
+        "bag_bonus_max":     best_params[3],
+        "performance_pct":   best_score
+    }
+
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
