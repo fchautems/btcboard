@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     smartDiv = document.getElementById('smart-dca-result');
     const optBtn = document.getElementById('opt-smart-dca-btn');
     const optSpinner = document.getElementById('opt-smart-spinner');
+    const geneticSpinner = document.getElementById('genetic-spinner');
     const optDiv = document.getElementById('opt-smart-result');
     const optStatus = document.getElementById('optimization-status');
 
@@ -121,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (geneticBtn) {
         geneticBtn.addEventListener('click', function() {
             geneticBtn.disabled = true;
+            geneticSpinner.classList.remove('d-none');
             geneticStatus.innerText = "Optimisation génétique en cours…";
             geneticResult.innerHTML = "";
 
@@ -135,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .then(res => res.json())
             .then(data => {
+                geneticSpinner.classList.add('d-none');
                 geneticStatus.innerHTML = "✅ Optimisation génétique terminée";
                 if (data.best) {
                     const best = data.best;
@@ -171,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 geneticBtn.disabled = false;
             })
             .catch(error => {
+                geneticSpinner.classList.add('d-none');
                 geneticStatus.innerHTML = '<span style="color: red;">Erreur lors de l’optimisation génétique</span>';
                 geneticResult.innerHTML = `<pre>${error}</pre>`;
                 geneticBtn.disabled = false;
