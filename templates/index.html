@@ -42,6 +42,8 @@
             <button type="submit" class="btn btn-primary mt-3">Calculer</button>
             <span id="calc-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
         </form>
+        <div id="results" class="mt-3"></div>
+        <button id="export-btn" class="btn btn-secondary my-3 d-none">Exporter les résultats CSV</button>
     </div>
 
     <div class="advanced-settings mb-4">
@@ -66,27 +68,45 @@
         </div>
     </div>
 
-    <button id="best-days-btn" class="btn btn-outline-secondary mt-3">🔍 Simuler les meilleurs jours d'investissement</button>
-    <span id="best-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
-    <div id="best-days" class="mt-3"></div>
+    <ul class="nav nav-tabs" id="feature-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="best-tab" data-bs-toggle="tab" data-bs-target="#best-pane" type="button" role="tab">🔍 Meilleurs jours</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="smart-tab" data-bs-toggle="tab" data-bs-target="#smart-pane" type="button" role="tab">💡 DCA intelligent</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="opt-tab" data-bs-toggle="tab" data-bs-target="#opt-pane" type="button" role="tab">📈 Optimisation</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="genetic-tab" data-bs-toggle="tab" data-bs-target="#genetic-pane" type="button" role="tab">⚡ Génétique</button>
+        </li>
+    </ul>
+    <div class="tab-content mt-3">
+        <div class="tab-pane fade show active" id="best-pane" role="tabpanel">
+            <button id="best-days-btn" class="btn btn-outline-secondary mt-3">🔍 Simuler les meilleurs jours d'investissement</button>
+            <span id="best-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+            <div id="best-days" class="mt-3"></div>
+        </div>
+        <div class="tab-pane fade" id="smart-pane" role="tabpanel">
+            <button id="smart-dca-btn" class="btn btn-outline-secondary mt-3">💡 Simuler un DCA intelligent basé sur le Fear & Greed</button>
+            <span id="smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+            <div id="smart-dca-result" class="mt-3"></div>
+        </div>
+        <div class="tab-pane fade" id="opt-pane" role="tabpanel">
+            <button id="opt-smart-dca-btn" class="btn btn-outline-secondary mt-3">📈 Optimiser la stratégie DCA intelligente</button>
+            <span id="opt-smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+            <div id="optimization-status" class="mt-2"></div>
+            <div id="opt-smart-result" class="mt-3"></div>
+        </div>
+        <div class="tab-pane fade" id="genetic-pane" role="tabpanel">
+            <button id="genetic-opt-btn" class="btn btn-outline-secondary mt-3">⚡ Optimiser par algorithme génétique</button>
+            <span id="genetic-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+            <div id="genetic-opt-status" class="mt-2"></div>
+            <div id="genetic-opt-result" class="mt-2"></div>
+        </div>
+    </div>
 
-    <button id="smart-dca-btn" class="btn btn-outline-secondary mt-3">💡 Simuler un DCA intelligent basé sur le Fear & Greed</button>
-    <span id="smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
-    <div id="smart-dca-result" class="mt-3"></div>
-
-    <button id="opt-smart-dca-btn" class="btn btn-outline-secondary mt-3">📈 Optimiser la stratégie DCA intelligente</button>
-    <span id="opt-smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
-    <div id="optimization-status" class="mt-2"></div>
-    <div id="opt-smart-result" class="mt-3"></div>
-
-    <button id="genetic-opt-btn" class="btn btn-outline-secondary">⚡ Optimiser par algorithme génétique</button>
-    <span id="opt-smart-spinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
-    <div id="genetic-opt-status" class="mt-2"></div>
-    <div id="genetic-opt-result" class="mt-2"></div>
-
-
-    <div id="results" class="mt-3"></div>
-    <button id="export-btn" class="btn btn-secondary my-3 d-none">Exporter les résultats CSV</button>
 
     <canvas id="priceChart" height="100"></canvas>
     <canvas id="fgChart" height="100"></canvas>
@@ -95,6 +115,7 @@
     <canvas id="perfChart" height="100"></canvas>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
