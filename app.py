@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from flask import Flask, jsonify, request, render_template, g, Response, stream_with_context
 import json
 import time
@@ -11,6 +11,7 @@ import tempfile
 import traceback
 import random
 from typing import List, Tuple, Dict
+from pytrends.request import TrendReq
 
 # Bounds for the four optimisation parameters
 PARAM_BOUNDS: List[Tuple[int, int]] = [
@@ -94,6 +95,10 @@ def init_db(force: bool = False):
         raise
 
 init_db(force=True)
+
+# Cache pour les tendances Google Trends
+TREND_CACHE: dict[str, tuple[float, dict]] = {}
+TREND_TTL = 6 * 3600  # 6 heures
 
 @app.route('/api/genetic-optimize-smart-dca', methods=['POST'])
 def genetic_optimize_smart_dca():
@@ -328,6 +333,64 @@ def get_date_range():
         logging.error("Erreur dans get_date_range: %s", e)
         raise
 
+
+def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
+    """Récupère la série Google Trends journalière pour Bitcoin avec rescaling."""
+    kw = ["bitcoin"]
+    delta = timedelta(days=90)
+    overlap = 30
+    pt = TrendReq(hl="fr-FR", tz=0, timeout=(10, 25))
+
+    cur_start = start
+    all_df: pd.DataFrame | None = None
+
+    while cur_start <= end:
+        cur_end = min(cur_start + delta, end)
+        tf = f"{cur_start.strftime('%Y-%m-%d')} {cur_end.strftime('%Y-%m-%d')}"
+        pt.build_payload(kw, timeframe=tf)
+        df = pt.interest_over_time().drop(columns=["isPartial"])
+        if all_df is None:
+            all_df = df
+        else:
+            overlap_prev = all_df.iloc[-overlap:]
+            overlap_new = df.iloc[:overlap]
+            if not overlap_new.empty and not overlap_prev.empty:
+                factor = (overlap_prev.mean()[0] / overlap_new.mean()[0]) or 1
+            else:
+                factor = 1
+            df = df * factor
+            df = df.iloc[overlap:]
+            all_df = pd.concat([all_df, df])
+        cur_start = cur_start + delta - timedelta(days=overlap)
+
+    return all_df.loc[start:end]
+
+
+def get_trends_json(period: str) -> dict:
+    today = date.today()
+    if period == "week":
+        start = today - timedelta(days=7)
+    elif period == "month":
+        start = today - timedelta(days=30)
+    elif period == "year":
+        start = today - timedelta(days=365)
+    else:  # all
+        start = date(2018, 1, 1)
+
+    df = fetch_trend_series(start, today)
+    scores = [
+        {"date": d.strftime("%Y-%m-%d"), "score": int(round(v))}
+        for d, v in df["bitcoin"].items()
+    ]
+    current_score = scores[-1]["score"] if scores else 0
+    previous = scores[-2]["score"] if len(scores) > 1 else current_score
+    delta_pct = ((current_score - previous) / previous * 100) if previous else 0
+    return {
+        "scores": scores,
+        "current_score": current_score,
+        "delta_percent": round(delta_pct, 2),
+    }
+
 def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     """
     Simulation d’un DCA « Fear & Greed ».
@@ -415,6 +478,22 @@ def chart_data():
     prices = [r['price'] for r in rows]
     fg = [r['fg'] for r in rows]
     return jsonify({'dates': dates, 'prices': prices, 'fg': fg})
+
+
+@app.route('/trends')
+def trends():
+    period = request.args.get('period', 'month')
+    now = time.time()
+    cached = TREND_CACHE.get(period)
+    if cached and now - cached[0] < TREND_TTL:
+        return jsonify(cached[1])
+    try:
+        data = get_trends_json(period)
+        TREND_CACHE[period] = (now, data)
+        return jsonify(data)
+    except Exception as exc:
+        logging.error("Erreur trends: %s", exc)
+        return jsonify({'error': str(exc)}), 500
 
 
 @app.route('/api/data')
