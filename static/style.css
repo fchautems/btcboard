@@ -95,3 +95,15 @@ canvas {
     background-color: #e6e6e6;
     border-color: #ccc;
 }
+
+/* Bandeau Google Trends */
+#trends-container {
+    max-height: 200px;
+}
+#trend-score {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+#trend-score .arrow {
+    margin-left: 5px;
+}
