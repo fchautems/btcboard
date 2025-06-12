@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const optStatus = document.getElementById('optimization-status');
 
     const trendScore = document.getElementById('trend-score');
+    const trendsSpinner = document.getElementById('trends-spinner');
+    const trendBtns = document.querySelectorAll('.trend-filter');
     const trendCtx = document.getElementById('trendsChart').getContext('2d');
     let trendsChart;
 
@@ -33,18 +35,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadTrends(period){
+        trendsSpinner.classList.remove('d-none');
+        trendBtns.forEach(b => b.disabled = true);
         fetch(`/trends?period=${period}`)
-            .then(r=>r.json())
-            .then(d=>{
-                const labels = d.scores.map(s=>s.date);
-                const vals = d.scores.map(s=>s.score);
+            .then(r => r.json().then(data => ({ok: r.ok, data})))
+            .then(({ok, data}) => {
+                if(!ok){
+                    throw new Error(data.error || 'Erreur');
+                }
+                const labels = data.scores.map(s=>s.date);
+                const vals = data.scores.map(s=>s.score);
                 if(trendsChart) trendsChart.destroy();
                 trendsChart = new Chart(trendCtx, {
                     type:'line',
                     data:{ labels, datasets:[{ data: vals, borderColor:'#555', pointRadius:0 }] },
                     options:{ responsive:true, maintainAspectRatio:false, scales:{x:{type:'time', time:{unit:'month'}}}, plugins:{legend:{display:false}} }
                 });
-                trendScore.innerHTML = `${d.current_score} ${arrowHtml(d.delta_percent)}`;
+                trendScore.innerHTML = `${data.current_score} ${arrowHtml(data.delta_percent)}`;
+            })
+            .catch(err => {
+                trendScore.innerHTML = `<span class="text-danger">Erreur : ${err.message}</span>`;
+            })
+            .finally(() => {
+                trendsSpinner.classList.add('d-none');
+                trendBtns.forEach(b => b.disabled = false);
             });
     }
 
