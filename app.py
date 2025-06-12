@@ -82,6 +82,9 @@ def init_db(force: bool = False):
                          (date TEXT PRIMARY KEY,
                           price REAL,
                           fg INTEGER)''')
+            c.execute('''CREATE TABLE trends
+                         (date TEXT PRIMARY KEY,
+                          score INTEGER)''')
             for _, row in df.iterrows():
                 c.execute('INSERT INTO data VALUES (?,?,?)',
                           (row['Date'], row['Price'], int(row['fg'])))
@@ -334,6 +337,42 @@ def get_date_range():
         raise
 
 
+def get_trends_from_db(period: str) -> pd.DataFrame:
+    """Return trend scores from the DB for the given period."""
+    today = date.today()
+    if period == "week":
+        start = today - timedelta(days=7)
+    elif period == "month":
+        start = today - timedelta(days=30)
+    elif period == "year":
+        start = today - timedelta(days=365)
+    else:
+        start = date(2018, 1, 1)
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT date, score FROM trends WHERE date >= ? AND date <= ? ORDER BY date",
+        (start.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")),
+    ).fetchall()
+    conn.close()
+    if not rows:
+        return pd.DataFrame(columns=["bitcoin"])
+    idx = [datetime.strptime(r["date"], "%Y-%m-%d").date() for r in rows]
+    return pd.DataFrame({"bitcoin": [r["score"] for r in rows]}, index=idx)
+
+
+def save_trends_to_db(df: pd.DataFrame) -> None:
+    """Insert trend scores into the DB."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    for d, v in df["bitcoin"].items():
+        cur.execute(
+            "INSERT OR REPLACE INTO trends (date, score) VALUES (?, ?)",
+            (d.strftime("%Y-%m-%d"), int(round(v))),
+        )
+    conn.commit()
+    conn.close()
+
+
 def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
     """Récupère la série Google Trends journalière pour Bitcoin avec rescaling.
 
@@ -400,7 +439,12 @@ def get_trends_json(period: str) -> dict:
     else:  # all
         start = date(2018, 1, 1)
 
-    df = fetch_trend_series(start, today)
+    df = get_trends_from_db(period)
+    required_days = (today - start).days + 1
+    if len(df) < required_days:
+        fetched = fetch_trend_series(start, today)
+        save_trends_to_db(fetched)
+        df = get_trends_from_db(period)
     scores = [
         {"date": d.strftime("%Y-%m-%d"), "score": int(round(v))}
         for d, v in df["bitcoin"].items()
