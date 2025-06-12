@@ -49,7 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.querySelectorAll('.trend-filter').forEach(btn=>{
-        btn.addEventListener('click', ()=>loadTrends(btn.dataset.period));
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.trend-filter').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            loadTrends(btn.dataset.period);
+        });
     });
     loadTrends('month');
 
