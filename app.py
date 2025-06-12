@@ -335,7 +335,15 @@ def get_date_range():
 
 
 def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
-    """Récupère la série Google Trends journalière pour Bitcoin avec rescaling."""
+    """Récupère la série Google Trends journalière pour Bitcoin avec rescaling.
+
+    Cette fonction effectue plusieurs appels à Google Trends sur des périodes
+    de 90 jours afin d'obtenir une résolution journalière pour de longues
+    durées. Les appels successifs peuvent rapidement provoquer un code HTTP 429
+    (trop de requêtes). On applique donc un petit backoff exponentiel en cas
+    d'erreur ainsi qu'une pause entre chaque segment pour limiter la charge.
+    """
+
     kw = ["bitcoin"]
     delta = timedelta(days=90)
     overlap = 30
@@ -347,8 +355,21 @@ def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
     while cur_start <= end:
         cur_end = min(cur_start + delta, end)
         tf = f"{cur_start.strftime('%Y-%m-%d')} {cur_end.strftime('%Y-%m-%d')}"
-        pt.build_payload(kw, timeframe=tf)
-        df = pt.interest_over_time().drop(columns=["isPartial"])
+
+        # Limite les erreurs 429 renvoyées par Google
+        for attempt in range(5):
+            try:
+                pt.build_payload(kw, timeframe=tf)
+                df = pt.interest_over_time().drop(columns=["isPartial"])
+                break
+            except Exception as exc:
+                # TooManyRequestsError et autres erreurs réseau
+                if attempt == 4:
+                    raise
+                time.sleep(2 ** attempt)
+        else:  # pragma: no cover - sûréserviste
+            raise RuntimeError("Unable to fetch Google Trends data")
+
         if all_df is None:
             all_df = df
         else:
@@ -361,7 +382,9 @@ def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
             df = df * factor
             df = df.iloc[overlap:]
             all_df = pd.concat([all_df, df])
+
         cur_start = cur_start + delta - timedelta(days=overlap)
+        time.sleep(1)  # évite d'enchaîner trop vite les requêtes
 
     return all_df.loc[start:end]
 
