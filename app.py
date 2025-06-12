@@ -10,6 +10,7 @@ import logging
 import tempfile
 import traceback
 import random
+import threading
 from typing import List, Tuple, Dict
 from pytrends.request import TrendReq
 
@@ -413,6 +414,40 @@ def get_trends_json(period: str) -> dict:
         "current_score": current_score,
         "delta_percent": round(delta_pct, 2),
     }
+
+
+def save_trends_to_db(data: dict) -> None:
+    """Enregistre les scores Google Trends dans la base."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS trends (date TEXT PRIMARY KEY, score INTEGER)"
+        )
+        for item in data.get("scores", []):
+            cur.execute(
+                "INSERT OR REPLACE INTO trends(date, score) VALUES (?, ?)",
+                (item["date"], item["score"]),
+            )
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        logging.error("Erreur save_trends_to_db: %s", exc)
+
+
+def _fetch_trends_background(period: str = "month") -> None:
+    """Tâche de fond pour enregistrer les tendances dès le démarrage."""
+    try:
+        data = get_trends_json(period)
+        save_trends_to_db(data)
+        logging.info("Tendances %s enregistrées", period)
+    except Exception as exc:
+        # On logge l'erreur mais on ne remonte pas d'exception
+        logging.error("Échec de récupération des tendances: %s", exc)
+
+
+# Démarre la récupération des tendances en tâche de fond après init_db
+threading.Thread(target=_fetch_trends_background, daemon=True).start()
 
 def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     """
