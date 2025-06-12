@@ -11,6 +11,18 @@
 </head>
 <body>
 <div class="container">
+    <div id="trends-container" class="mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div id="trend-score"></div>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary trend-filter" data-period="all">Tout</button>
+                <button class="btn btn-sm btn-outline-secondary trend-filter" data-period="year">Année</button>
+                <button class="btn btn-sm btn-outline-secondary trend-filter" data-period="month">Mois</button>
+                <button class="btn btn-sm btn-outline-secondary trend-filter" data-period="week">Semaine</button>
+            </div>
+        </div>
+        <canvas id="trendsChart" height="80"></canvas>
+    </div>
     <h1 class="my-4 text-center">Bitcoin Dashboard</h1>
     <div class="alert alert-info text-center" id="date-range">Données disponibles : {{ min_date }} à {{ max_date }}</div>
     <div class="mb-3 text-center">

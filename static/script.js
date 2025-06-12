@@ -20,6 +20,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const optDiv = document.getElementById('opt-smart-result');
     const optStatus = document.getElementById('optimization-status');
 
+    const trendScore = document.getElementById('trend-score');
+    const trendCtx = document.getElementById('trendsChart').getContext('2d');
+    let trendsChart;
+
+    function arrowHtml(delta){
+        const up = delta >= 0;
+        const arrow = up ? '▲' : '▼';
+        const color = up ? 'green' : 'red';
+        const size = 14 + Math.min(Math.abs(delta), 20) / 2;
+        return `<span class="arrow" style="color:${color};font-size:${size}px">${arrow}</span>`;
+    }
+
+    function loadTrends(period){
+        fetch(`/trends?period=${period}`)
+            .then(r=>r.json())
+            .then(d=>{
+                const labels = d.scores.map(s=>s.date);
+                const vals = d.scores.map(s=>s.score);
+                if(trendsChart) trendsChart.destroy();
+                trendsChart = new Chart(trendCtx, {
+                    type:'line',
+                    data:{ labels, datasets:[{ data: vals, borderColor:'#555', pointRadius:0 }] },
+                    options:{ responsive:true, maintainAspectRatio:false, scales:{x:{type:'time', time:{unit:'month'}}}, plugins:{legend:{display:false}} }
+                });
+                trendScore.innerHTML = `${d.current_score} ${arrowHtml(d.delta_percent)}`;
+            });
+    }
+
+    document.querySelectorAll('.trend-filter').forEach(btn=>{
+        btn.addEventListener('click', ()=>loadTrends(btn.dataset.period));
+    });
+    loadTrends('month');
+
     const fgHighInput = document.getElementById('fg_threshold_high');
     const fgLowInput = document.getElementById('fg_threshold_low');
     const bagPctInput = document.getElementById('bag_bonus_pct');
