@@ -96,7 +96,7 @@ canvas {
     border-color: #ccc;
 }
 
-# Bandeau Google Trends
+/* Bandeau Google Trends */
 #trends-container {
     max-height: 200px;
 }
