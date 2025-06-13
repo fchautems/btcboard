@@ -38,11 +38,19 @@ document.addEventListener('DOMContentLoaded', () => {
         trendsSpinner.classList.remove('d-none');
         trendBtns.forEach(b => b.disabled = true);
         fetch(`/trends?period=${period}`)
-            .then(r => r.json().then(data => ({ok: r.ok, data})))
-            .then(({ok, data}) => {
-                if(!ok){
+            .then(async r => {
+                let data;
+                try {
+                    data = await r.json();
+                } catch (e) {
+                    throw new Error('Réponse invalide du serveur');
+                }
+                if(!r.ok){
                     throw new Error(data.error || 'Erreur');
                 }
+                return data;
+            })
+            .then(data => {
                 const labels = data.scores.map(s=>s.date);
                 const vals = data.scores.map(s=>s.score);
                 if(trendsChart) trendsChart.destroy();
