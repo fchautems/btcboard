@@ -429,7 +429,7 @@ def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
     return all_df.loc[start:end]
 
 
-def get_trends_json(period: str) -> dict:
+def get_trends_json(period: str, fetch_if_missing: bool = True) -> dict:
     today = date.today()
     if period == "week":
         start = today - timedelta(days=7)
@@ -442,7 +442,7 @@ def get_trends_json(period: str) -> dict:
 
     df = get_trends_from_db(period)
     required_days = (today - start).days + 1
-    if len(df) < required_days:
+    if len(df) < required_days and fetch_if_missing:
         fetched = fetch_trend_series(start, today)
         save_trends_to_db(fetched)
         df = get_trends_from_db(period)
@@ -491,7 +491,9 @@ def _fetch_trends_background(period: str = "month") -> None:
 
 
 # Démarre la récupération des tendances en tâche de fond après init_db
-threading.Thread(target=_fetch_trends_background, daemon=True).start()
+# Sur Render, les accès réseaux sont restreints : on désactive donc ce thread
+if not os.getenv("RENDER"):
+    threading.Thread(target=_fetch_trends_background, daemon=True).start()
 
 def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     """
@@ -596,6 +598,19 @@ def trends():
     except Exception as exc:
         logging.error("Erreur trends: %s", exc)
         return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/trend-data')
+def trend_data():
+    """Return trend data without attempting network fetch if unavailable."""
+    period = request.args.get('period', 'month')
+    try:
+        out = get_trends_json(period, fetch_if_missing=False)
+        if not out['scores']:
+            return jsonify({"scores": [], "error": "Tendance indisponible"}), 200
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"scores": [], "error": str(e)}), 200
 
 
 @app.route('/api/data')
