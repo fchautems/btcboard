@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadTrends(period){
         trendsSpinner.classList.remove('d-none');
         trendBtns.forEach(b => b.disabled = true);
-        fetch(`/trends?period=${period}`)
+        fetch(`/api/trend-data?period=${period}`)
             .then(async r => {
                 let data;
                 try {
@@ -51,6 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return data;
             })
             .then(data => {
+                if(!data.scores || data.scores.length === 0 || data.error){
+                    if(trendsChart) trendsChart.destroy();
+                    trendScore.textContent = 'Tendance Google Trends indisponible actuellement';
+                    return;
+                }
                 const labels = data.scores.map(s=>s.date);
                 const vals = data.scores.map(s=>s.score);
                 if(trendsChart) trendsChart.destroy();
