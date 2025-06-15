@@ -429,7 +429,8 @@ def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
     return all_df.loc[start:end]
 
 
-def get_trends_json(period: str, allow_fetch: bool = True) -> dict:
+
+def get_trends_json(period: str, fetch_if_missing: bool = True) -> dict:
     today = date.today()
     if period == "week":
         start = today - timedelta(days=7)
@@ -592,7 +593,6 @@ def trend_data():
         return jsonify(out)
     except Exception as e:
         return jsonify({"scores": [], "error": str(e)}), 200
-
 
 @app.route('/api/data')
 def get_data():
