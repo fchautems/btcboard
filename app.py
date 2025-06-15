@@ -539,21 +539,14 @@ def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     return {
         'performance_pct': performance,
         'total_invested': invested,
-        'btc_total': btc_total,
-        'final_value': final_value,
-        'bag_used': bag_used,
-        'bag_remaining': bag,
-    }
+
+        now = time.time()
+        cached = TREND_CACHE.get(period)
+        if cached and now - cached[0] < TREND_TTL:
+            return jsonify(cached[1])
 
 
-
-
-@app.route('/')
-def index():
-    min_date, max_date = get_date_range()
-    return render_template('index.html', min_date=min_date, max_date=max_date)
-
-
+        TREND_CACHE[period] = (now, out)
 @app.route('/api/chart-data')
 def chart_data():
     conn = get_db_connection()

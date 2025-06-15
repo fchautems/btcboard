@@ -14,6 +14,11 @@ python app.py
 
 L\'interface est disponible sur [http://localhost:5000](http://localhost:5000).
 
+L'API `/api/trend-data` permet de récupérer les scores Google Trends en cache.
+Lorsque la variable d'environnement `RENDER` est présente, elle ne tente pas de
+télécharger de nouvelles données et se contente de ce qui est stocké dans la
+base.
+
 ## Préremplissage de la table `trends`
 
 Sur les plateformes où l'accès à Google Trends est bloqué (par exemple Render),
