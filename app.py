@@ -429,7 +429,7 @@ def fetch_trend_series(start: date, end: date) -> pd.DataFrame:
     return all_df.loc[start:end]
 
 
-def get_trends_json(period: str) -> dict:
+def get_trends_json(period: str, allow_fetch: bool = True) -> dict:
     today = date.today()
     if period == "week":
         start = today - timedelta(days=7)
@@ -442,7 +442,7 @@ def get_trends_json(period: str) -> dict:
 
     df = get_trends_from_db(period)
     required_days = (today - start).days + 1
-    if len(df) < required_days:
+    if len(df) < required_days and allow_fetch:
         fetched = fetch_trend_series(start, today)
         save_trends_to_db(fetched)
         df = get_trends_from_db(period)
@@ -460,30 +460,10 @@ def get_trends_json(period: str) -> dict:
     }
 
 
-def save_trends_to_db(data: dict) -> None:
-    """Enregistre les scores Google Trends dans la base."""
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "CREATE TABLE IF NOT EXISTS trends (date TEXT PRIMARY KEY, score INTEGER)"
-        )
-        for item in data.get("scores", []):
-            cur.execute(
-                "INSERT OR REPLACE INTO trends(date, score) VALUES (?, ?)",
-                (item["date"], item["score"]),
-            )
-        conn.commit()
-        conn.close()
-    except Exception as exc:
-        logging.error("Erreur save_trends_to_db: %s", exc)
-
-
 def _fetch_trends_background(period: str = "month") -> None:
     """Tâche de fond pour enregistrer les tendances dès le démarrage."""
     try:
-        data = get_trends_json(period)
-        save_trends_to_db(data)
+        get_trends_json(period)
         logging.info("Tendances %s enregistrées", period)
     except Exception as exc:
         # On logge l'erreur mais on ne remonte pas d'exception
@@ -491,7 +471,9 @@ def _fetch_trends_background(period: str = "month") -> None:
 
 
 # Démarre la récupération des tendances en tâche de fond après init_db
-threading.Thread(target=_fetch_trends_background, daemon=True).start()
+# Sur Render, les accès réseaux sont restreints : on désactive donc ce thread
+if not os.getenv("RENDER"):
+    threading.Thread(target=_fetch_trends_background, daemon=True).start()
 
 def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     """
@@ -596,6 +578,20 @@ def trends():
     except Exception as exc:
         logging.error("Erreur trends: %s", exc)
         return jsonify({'error': str(exc)}), 500
+
+
+@app.route('/api/trend-data')
+def trend_data():
+    """Return trend data, avoiding network calls on Render deployments."""
+    period = request.args.get('period', 'month')
+    try:
+        allow_fetch = not os.getenv("RENDER")
+        out = get_trends_json(period, allow_fetch=allow_fetch)
+        if not out['scores']:
+            return jsonify({"scores": [], "error": "Tendance indisponible"}), 200
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"scores": [], "error": str(e)}), 200
 
 
 @app.route('/api/data')
