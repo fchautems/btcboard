@@ -443,7 +443,7 @@ def get_trends_json(period: str, fetch_if_missing: bool = True) -> dict:
 
     df = get_trends_from_db(period)
     required_days = (today - start).days + 1
-    if len(df) < required_days and allow_fetch:
+    if len(df) < required_days and fetch_if_missing:
         fetched = fetch_trend_series(start, today)
         save_trends_to_db(fetched)
         df = get_trends_from_db(period)
@@ -539,14 +539,12 @@ def simulate_smart_dca_rows(rows, step, amount, high, low, pct, bonus_max):
     return {
         'performance_pct': performance,
         'total_invested': invested,
+        'btc_total': btc_total,
+        'final_value': final_value,
+        'bag_used': bag_used,
+        'bag_remaining': bag,
+    }
 
-        now = time.time()
-        cached = TREND_CACHE.get(period)
-        if cached and now - cached[0] < TREND_TTL:
-            return jsonify(cached[1])
-
-
-        TREND_CACHE[period] = (now, out)
 @app.route('/api/chart-data')
 def chart_data():
     conn = get_db_connection()
@@ -580,7 +578,7 @@ def trend_data():
     period = request.args.get('period', 'month')
     try:
         allow_fetch = not os.getenv("RENDER")
-        out = get_trends_json(period, allow_fetch=allow_fetch)
+        out = get_trends_json(period, fetch_if_missing=allow_fetch)
         if not out['scores']:
             return jsonify({"scores": [], "error": "Tendance indisponible"}), 200
         return jsonify(out)
